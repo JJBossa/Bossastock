@@ -17,12 +17,23 @@ try:
 except ImportError:
     PDF2IMAGE_AVAILABLE = False
 
-# ⚠️ IMPORTANTE: ruta correcta en Windows
-# Configurar ruta de Tesseract si está en la ubicación por defecto de Windows
+# ⚠️ IMPORTANTE: Configurar ruta de Tesseract según el sistema operativo
+# Windows
 if os.name == 'nt':  # Windows
     tesseract_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
     if os.path.exists(tesseract_path):
         pytesseract.pytesseract.tesseract_cmd = tesseract_path
+# Linux (producción - Render, PythonAnywhere, etc.)
+else:
+    # Intentar encontrar Tesseract en rutas comunes de Linux
+    tesseract_paths = [
+        '/usr/bin/tesseract',
+        '/usr/local/bin/tesseract',
+    ]
+    for path in tesseract_paths:
+        if os.path.exists(path):
+            pytesseract.pytesseract.tesseract_cmd = path
+            break
 
 # Idioma a usar para OCR (español)
 OCR_LANG = "spa"
