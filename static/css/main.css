@@ -1,0 +1,529 @@
+/* Variables CSS */
+:root {
+    --primary-color: #2563eb;
+    --secondary-color: #1e40af;
+    --success-color: #10b981;
+    --danger-color: #ef4444;
+    --warning-color: #f59e0b;
+    --info-color: #06b6d4;
+    --light-bg: #f8f9fa;
+    --border-color: #e9ecef;
+    --text-muted: #6c757d;
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Estilos generales */
+body {
+    background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    color: #212529;
+}
+
+.main-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    margin: 20px auto;
+    padding: 30px;
+    max-width: 1400px;
+    transition: box-shadow 0.3s ease;
+}
+
+.main-container:hover {
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+}
+
+/* Navbar */
+.navbar-custom {
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    box-shadow: var(--shadow-md);
+    padding: 0.75rem 0;
+}
+
+.navbar-brand {
+    font-weight: 600;
+    font-size: 1.5rem;
+    letter-spacing: -0.5px;
+}
+
+.navbar-text {
+    font-weight: 500;
+}
+
+/* Tarjetas de productos */
+.card-producto {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: none;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.card-producto:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.card-producto img {
+    transition: transform 0.3s ease;
+}
+
+.card-producto:hover img {
+    transform: scale(1.05);
+}
+
+.imagen-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    color: #999;
+}
+
+/* Badges y etiquetas */
+.badge-stock {
+    font-size: 0.9rem;
+    padding: 8px 12px;
+}
+
+/* Contenedor de búsqueda */
+.search-container {
+    background: var(--light-bg);
+    padding: 25px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    border: 1px solid var(--border-color);
+}
+
+.search-container .form-control,
+.search-container .form-select {
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.search-container .form-control:focus,
+.search-container .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+}
+
+/* Filtros avanzados colapsables */
+.filtros-avanzados {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.filtros-toggle {
+    cursor: pointer;
+    color: var(--primary-color);
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.filtros-toggle:hover {
+    color: var(--secondary-color);
+}
+
+.btn-filter {
+    border-radius: 20px;
+    padding: 8px 20px;
+    margin: 5px;
+}
+
+/* Precio */
+.precio {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+/* Tarjeta de estadísticas */
+.stats-card {
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: var(--shadow-md);
+}
+
+.stats-card h3 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.9;
+}
+
+.stats-card h4 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.stats-card p {
+    margin: 0;
+    opacity: 0.85;
+    font-size: 0.95rem;
+}
+
+/* Imágenes de productos */
+.producto-imagen {
+    height: 200px;
+    object-fit: cover;
+    padding: 10px;
+    border-radius: 10px;
+}
+
+.producto-imagen-detalle {
+    max-height: 400px;
+    object-fit: cover;
+}
+
+.producto-imagen-eliminar {
+    max-height: 150px;
+    border-radius: 5px;
+}
+
+.imagen-preview {
+    max-height: 200px;
+}
+
+.producto-placeholder {
+    height: 200px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    margin: 10px;
+    border-radius: 10px;
+}
+
+.producto-placeholder-detalle {
+    height: 400px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.producto-placeholder-icon {
+    font-size: 4rem;
+    color: #999;
+}
+
+.producto-placeholder-icon-detalle {
+    font-size: 5rem;
+    color: #999;
+}
+
+/* Badges de categoría */
+.badge-categoria {
+    background-color: var(--primary-color);
+}
+
+/* Precio destacado */
+.precio-destacado {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+}
+
+/* Stock badges */
+.stock-badge {
+    font-size: 1rem;
+}
+
+/* Iconos grandes */
+.icono-grande {
+    font-size: 3rem;
+    color: #667eea;
+}
+
+.icono-info-grande {
+    font-size: 2rem;
+}
+
+/* Imagen con sombra */
+.imagen-sombra {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+}
+
+/* Vista de lista de productos */
+.vista-lista .card-producto {
+    display: flex;
+    flex-direction: row;
+    margin-bottom: 15px;
+}
+
+.vista-lista .card-producto .card-img-top {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 8px 0 0 8px;
+    flex-shrink: 0;
+}
+
+.vista-lista .card-producto .producto-placeholder {
+    width: 150px;
+    height: 150px;
+    margin: 0;
+    border-radius: 8px 0 0 8px;
+}
+
+.vista-lista .card-producto .card-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex: 1;
+    padding: 20px;
+}
+
+.vista-lista .card-producto .card-title {
+    margin-bottom: 10px;
+}
+
+.vista-lista .card-producto .producto-info {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* Breadcrumbs */
+.breadcrumb {
+    background: transparent;
+    padding: 0;
+    margin-bottom: 20px;
+}
+
+.breadcrumb-item a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.breadcrumb-item a:hover {
+    color: var(--secondary-color);
+}
+
+/* Footer */
+.footer {
+    background: #212529;
+    color: #fff;
+    padding: 30px 0;
+    margin-top: 50px;
+    text-align: center;
+}
+
+.footer p {
+    margin: 0;
+    opacity: 0.8;
+}
+
+/* Mejoras en botones */
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    padding: 0.5rem 1rem;
+    border: 2px solid transparent;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-sm {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+    color: white;
+}
+
+.btn-warning {
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
+    color: #000;
+}
+
+.btn-warning:hover {
+    background-color: #d97706;
+    border-color: #d97706;
+    color: #000;
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #dc2626;
+    border-color: #dc2626;
+    color: white;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #5a6268;
+    border-color: #5a6268;
+    color: white;
+}
+
+/* Mejoras en cards */
+.card {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.card-header {
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+    padding: 1rem 1.25rem;
+}
+
+/* Mejoras en badges */
+.badge {
+    padding: 0.5em 0.75em;
+    font-weight: 500;
+    border-radius: 6px;
+}
+
+/* Mejoras en alertas */
+.alert {
+    border-radius: 10px;
+    border: none;
+    box-shadow: var(--shadow-sm);
+}
+
+/* Mejoras en tablas */
+.table {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.table thead th {
+    background-color: var(--light-bg);
+    font-weight: 600;
+    border-bottom: 2px solid var(--border-color);
+}
+
+/* Animaciones suaves */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.4s ease-out;
+}
+
+/* Mejoras en paginación */
+.pagination .page-link {
+    border-radius: 8px;
+    margin: 0 4px;
+    border: 2px solid var(--border-color);
+    color: var(--primary-color);
+    transition: all 0.3s ease;
+    font-weight: 500;
+    padding: 0.6rem 1.2rem;
+    min-width: 120px;
+    text-align: center;
+}
+
+.pagination .page-link:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-pagination {
+    background-color: white;
+    border: 2px solid var(--primary-color) !important;
+    color: var(--primary-color) !important;
+    font-weight: 500;
+}
+
+.btn-pagination:hover {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .main-container {
+        margin: 10px;
+        padding: 20px;
+        border-radius: 8px;
+    }
+    
+    .search-container {
+        padding: 15px;
+    }
+    
+    .producto-imagen {
+        height: 150px;
+    }
+    
+    .producto-placeholder {
+        height: 150px;
+    }
+    
+    .stats-card h3 {
+        font-size: 2rem;
+    }
+    
+    .stats-card h4 {
+        font-size: 1.5rem;
+    }
+    
+    .vista-lista .card-producto {
+        flex-direction: column;
+    }
+    
+    .vista-lista .card-producto .card-img-top,
+    .vista-lista .card-producto .producto-placeholder {
+        width: 100%;
+        height: 200px;
+        border-radius: 8px 8px 0 0;
+    }
+}
+

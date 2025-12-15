@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestionar Proveedores - Control de Stock{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-building"></i> Gestionar Proveedores</h2>
+    <a href="{% url 'listar_facturas' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Volver a Facturas
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-plus-circle"></i> Agregar Proveedor</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="agregar" value="1">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Nombre *</label>
+                        {{ form.nombre }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">RUT</label>
+                        {{ form.rut }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contacto</label>
+                        {{ form.contacto }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Teléfono</label>
+                        {{ form.telefono }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        {{ form.email }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Dirección</label>
+                        {{ form.direccion }}
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-check-circle"></i> Agregar Proveedor
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-list"></i> Lista de Proveedores</h5>
+            </div>
+            <div class="card-body">
+                {% if proveedores %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nombre</th>
+                                <th>RUT</th>
+                                <th>Contacto</th>
+                                <th>Teléfono</th>
+                                <th>Email</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for proveedor in proveedores %}
+                            <tr>
+                                <td><strong>{{ proveedor.nombre }}</strong></td>
+                                <td>{{ proveedor.rut|default:"-" }}</td>
+                                <td>{{ proveedor.contacto|default:"-" }}</td>
+                                <td>{{ proveedor.telefono|default:"-" }}</td>
+                                <td>{{ proveedor.email|default:"-" }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#editarModal{{ proveedor.id }}">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <form method="post" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="eliminar" value="1">
+                                            <input type="hidden" name="proveedor_id" value="{{ proveedor.id }}">
+                                            <button type="submit" class="btn btn-danger" onclick="return confirm('¿Eliminar este proveedor?');">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info text-center">
+                    <i class="bi bi-info-circle"></i> No hay proveedores registrados.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modales para editar -->
+{% for proveedor in proveedores %}
+<div class="modal fade" id="editarModal{{ proveedor.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Proveedor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="editar" value="1">
+                <input type="hidden" name="proveedor_id" value="{{ proveedor.id }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre</label>
+                        <input type="text" name="nombre" class="form-control" value="{{ proveedor.nombre }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">RUT</label>
+                        <input type="text" name="rut" class="form-control" value="{{ proveedor.rut }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contacto</label>
+                        <input type="text" name="contacto" class="form-control" value="{{ proveedor.contacto }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Teléfono</label>
+                        <input type="text" name="telefono" class="form-control" value="{{ proveedor.telefono }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control" value="{{ proveedor.email }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Dirección</label>
+                        <textarea name="direccion" class="form-control" rows="2">{{ proveedor.direccion }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+

@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Factura - Control de Stock{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-pencil-square"></i> Revisar y Confirmar Factura</h2>
+    <div>
+        <a href="{% url 'listar_facturas' %}" class="btn btn-secondary me-2">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+        <span class="badge {% if factura.estado == 'procesada' %}bg-success{% elif factura.estado == 'pendiente' %}bg-warning{% else %}bg-danger{% endif %}">
+            {% if factura.estado == 'procesada' %}Procesada{% elif factura.estado == 'pendiente' %}Pendiente{% else %}Rechazada{% endif %}
+        </span>
+    </div>
+</div>
+
+<!-- Información de la factura -->
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="bi bi-info-circle"></i> Información de la Factura</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <strong>Número:</strong> {{ factura.numero_factura|default:"N/A" }}
+            </div>
+            <div class="col-md-3">
+                <strong>Proveedor:</strong> {{ factura.proveedor.nombre|default:"Sin proveedor" }}
+            </div>
+            <div class="col-md-3">
+                <strong>Fecha:</strong> {{ factura.fecha_emision|date:"d/m/Y"|default:"N/A" }}
+            </div>
+            <div class="col-md-3">
+                <strong>Total:</strong> <span class="text-primary"><strong>${{ factura.total|floatformat:0 }}</strong></span>
+            </div>
+        </div>
+        <div class="mt-3">
+            {% if factura.archivo %}
+            <a href="{{ factura.archivo.url }}" target="_blank" class="btn btn-sm btn-outline-primary me-2">
+                <i class="bi bi-file-earmark-pdf"></i> Ver Factura Original
+            </a>
+            {% endif %}
+            <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#textoModal">
+                <i class="bi bi-eye"></i> Ver Texto Extraído (OCR)
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para ver texto OCR -->
+<div class="modal fade" id="textoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Texto Extraído por OCR</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% if factura.texto_extraido %}
+                <pre style="max-height: 500px; overflow-y: auto; white-space: pre-wrap; font-size: 0.9rem;">{{ factura.texto_extraido }}</pre>
+                {% else %}
+                <p class="text-muted">No se extrajo texto de la factura. Verifica que Tesseract OCR esté instalado correctamente.</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Items de la factura -->
+<form method="post">
+    {% csrf_token %}
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-list-ul"></i> Items de la Factura</h5>
+            <button type="submit" name="guardar_items" class="btn btn-sm btn-primary">
+                <i class="bi bi-save"></i> Guardar Cambios
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Producto</th>
+                            <th>Nombre (Texto OCR)</th>
+                            <th>Cantidad</th>
+                            <th>Precio Unit.</th>
+                            <th>Subtotal</th>
+                            <th>Coincidencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if items %}
+                        {% for item in items %}
+                        <tr class="{% if not item.producto %}table-warning{% elif item.producto_coincidencia %}table-success{% endif %}">
+                            <td>
+                                <select name="producto_{{ item.id }}" class="form-select form-select-sm">
+                                    <option value="">-- Seleccionar --</option>
+                                    {% for producto in productos %}
+                                    <option value="{{ producto.id }}" {% if item.producto_id == producto.id %}selected{% endif %}>
+                                        {{ producto.nombre }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" name="nombre_producto_{{ item.id }}" value="{{ item.nombre_producto }}" class="form-control form-control-sm">
+                            </td>
+                            <td>
+                                <input type="number" name="cantidad_{{ item.id }}" value="{{ item.cantidad }}" min="1" class="form-control form-control-sm" style="width: 80px;">
+                            </td>
+                            <td>
+                                <input type="number" name="precio_{{ item.id }}" value="{{ item.precio_unitario }}" min="0" class="form-control form-control-sm" style="width: 120px;">
+                            </td>
+                            <td><strong>${{ item.subtotal|floatformat:0 }}</strong></td>
+                            <td>
+                                {% if item.producto_coincidencia %}
+                                <span class="badge bg-success"><i class="bi bi-check-circle"></i> Coincide</span>
+                                {% else %}
+                                <span class="badge bg-warning"><i class="bi bi-exclamation-triangle"></i> Revisar</span>
+                                {% endif %}
+                                {% if item.stock_actualizado %}
+                                <br><small class="text-success"><i class="bi bi-check"></i> Stock actualizado</small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                <i class="bi bi-inbox icono-info-grande"></i>
+                                <p class="mt-2">No se detectaron items automáticamente.</p>
+                                <p class="small">Puedes agregarlos manualmente usando el formulario de abajo, o hacer clic en "Ver Texto Extraído (OCR)" para revisar qué detectó el sistema.</p>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-primary">
+                            <th colspan="4" class="text-end">TOTAL:</th>
+                            <th colspan="2">${{ factura.total|floatformat:0 }}</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Agregar nuevo item -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-plus-circle"></i> Agregar Item Manualmente</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <input type="text" name="nombre_nuevo" class="form-control" placeholder="Nombre del producto">
+                </div>
+                <div class="col-md-2">
+                    <select name="producto_nuevo" class="form-select">
+                        <option value="">-- Producto --</option>
+                        {% for producto in productos %}
+                        <option value="{{ producto.id }}">{{ producto.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <input type="number" name="cantidad_nuevo" class="form-control" placeholder="Cantidad" min="1" value="1">
+                </div>
+                <div class="col-md-2">
+                    <input type="number" name="precio_nuevo" class="form-control" placeholder="Precio" min="0">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" name="agregar_item" class="btn btn-primary w-100">
+                        <i class="bi bi-plus"></i> Agregar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botones de acción -->
+    {% if factura.estado == 'pendiente' %}
+    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+        <a href="{% url 'listar_facturas' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+        <button type="submit" name="confirmar" class="btn btn-success btn-lg" onclick="return confirm('¿Estás seguro de procesar esta factura? Se actualizará el stock de los productos.');">
+            <i class="bi bi-check-circle"></i> Confirmar y Actualizar Stock
+        </button>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> Esta factura ya fue procesada. El stock ya fue actualizado.
+    </div>
+    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+        <a href="{% url 'listar_facturas' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+        <a href="{% url 'detalle_factura' factura.id %}" class="btn btn-primary">
+            <i class="bi bi-eye"></i> Ver Detalle
+        </a>
+    </div>
+    {% endif %}
+</form>
+{% endblock %}
+

@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Control de Stock{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-speedometer2"></i> Dashboard</h2>
+    <div>
+        <a href="{% url 'inicio' %}" class="btn btn-secondary me-2">
+            <i class="bi bi-arrow-left"></i> Volver al Inicio
+        </a>
+        <a href="{% url 'exportar_excel' %}" class="btn btn-success">
+            <i class="bi bi-file-earmark-excel"></i> Excel
+        </a>
+        <a href="{% url 'exportar_pdf' %}" class="btn btn-danger">
+            <i class="bi bi-file-earmark-pdf"></i> PDF
+        </a>
+        <a href="{% url 'exportar_csv' %}" class="btn btn-info">
+            <i class="bi bi-file-earmark-spreadsheet"></i> CSV
+        </a>
+    </div>
+</div>
+
+<!-- Estadísticas principales -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <h5><i class="bi bi-boxes"></i> Total Productos</h5>
+                <h2>{{ total_productos }}</h2>
+                <small>Activos: {{ productos_activos }}</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h5><i class="bi bi-currency-dollar"></i> Valor Inventario</h5>
+                <h2>${{ valor_inventario|floatformat:0 }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <h5><i class="bi bi-exclamation-triangle"></i> Stock Bajo</h5>
+                <h2>{{ productos_stock_bajo }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <h5><i class="bi bi-image"></i> Sin Imagen</h5>
+                <h2>{{ productos_sin_imagen }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estadísticas de tiempo -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6>Productos Hoy</h6>
+                <h3>{{ productos_hoy }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6>Esta Semana</h6>
+                <h3>{{ productos_semana }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6>Este Mes</h6>
+                <h3>{{ productos_mes }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Productos con stock bajo -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Productos con Stock Bajo</h5>
+            </div>
+            <div class="card-body">
+                {% if productos_bajo_stock %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Stock</th>
+                                <th>Mínimo</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for producto in productos_bajo_stock %}
+                            <tr>
+                                <td>{{ producto.nombre|truncatewords:3 }}</td>
+                                <td><span class="badge bg-danger">{{ producto.stock }}</span></td>
+                                <td>{{ producto.stock_minimo }}</td>
+                                <td><a href="{% url 'editar_producto' producto.id %}" class="btn btn-sm btn-warning">Editar</a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No hay productos con stock bajo</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Productos por categoría -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-tags"></i> Productos por Categoría</h5>
+            </div>
+            <div class="card-body">
+                {% if productos_por_categoria %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Categoría</th>
+                                <th>Cantidad</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cat in productos_por_categoria %}
+                            <tr>
+                                <td>
+                                    <span class="badge badge-categoria" style="background-color: {{ cat.color }};">{{ cat.nombre }}</span>
+                                </td>
+                                <td>{{ cat.cantidad }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No hay categorías con productos</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cambios recientes -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Cambios Recientes</h5>
+            </div>
+            <div class="card-body">
+                {% if cambios_recientes %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Producto</th>
+                                <th>Tipo</th>
+                                <th>Usuario</th>
+                                <th>Detalle</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cambio in cambios_recientes %}
+                            <tr>
+                                <td>{{ cambio.fecha|date:"d/m/Y H:i" }}</td>
+                                <td>{{ cambio.producto.nombre|truncatewords:3 }}</td>
+                                <td>
+                                    {% if cambio.tipo_cambio == 'crear' %}
+                                        <span class="badge bg-success">Creación</span>
+                                    {% elif cambio.tipo_cambio == 'editar' %}
+                                        <span class="badge bg-warning">Edición</span>
+                                    {% elif cambio.tipo_cambio == 'eliminar' %}
+                                        <span class="badge bg-danger">Eliminación</span>
+                                    {% elif cambio.tipo_cambio == 'stock' %}
+                                        <span class="badge bg-info">Stock</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ cambio.usuario.username|default:"Sistema" }}</td>
+                                <td>
+                                    {% if cambio.campo_modificado %}
+                                        {{ cambio.campo_modificado }}: {{ cambio.valor_anterior }} → {{ cambio.valor_nuevo }}
+                                    {% else %}
+                                        {{ cambio.descripcion|default:"-" }}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No hay cambios recientes</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+
+{% block title %}Subir Factura - Control de Stock{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-lg border-0">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="bi bi-upload"></i> Subir Nueva Factura
+                </h4>
+            </div>
+            <div class="card-body p-4">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Instrucciones:</strong> Sube una factura en formato PDF o imagen (JPG, PNG). 
+                    El sistema procesará automáticamente la factura usando OCR y detectará productos, precios y cantidades.
+                </div>
+
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.archivo.id_for_label }}" class="form-label">
+                            <i class="bi bi-file-earmark"></i> {{ form.archivo.label }} <span class="text-danger">*</span>
+                        </label>
+                        {{ form.archivo }}
+                        <small class="form-text text-muted">Formatos aceptados: PDF, JPG, PNG (máx. 10MB)</small>
+                        {% if form.archivo.errors %}
+                            <div class="text-danger">{{ form.archivo.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.proveedor.id_for_label }}" class="form-label">
+                                <i class="bi bi-building"></i> {{ form.proveedor.label }}
+                            </label>
+                            {{ form.proveedor }}
+                            <small class="form-text text-muted">Opcional - Se puede agregar después</small>
+                            {% if form.proveedor.errors %}
+                                <div class="text-danger">{{ form.proveedor.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.fecha_emision.id_for_label }}" class="form-label">
+                                <i class="bi bi-calendar"></i> {{ form.fecha_emision.label }}
+                            </label>
+                            {{ form.fecha_emision }}
+                            <small class="form-text text-muted">Se detecta automáticamente del OCR</small>
+                            {% if form.fecha_emision.errors %}
+                                <div class="text-danger">{{ form.fecha_emision.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.numero_factura.id_for_label }}" class="form-label">
+                            <i class="bi bi-hash"></i> {{ form.numero_factura.label }}
+                        </label>
+                        {{ form.numero_factura }}
+                        <small class="form-text text-muted">Se detecta automáticamente del OCR</small>
+                        {% if form.numero_factura.errors %}
+                            <div class="text-danger">{{ form.numero_factura.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="{{ form.notas.id_for_label }}" class="form-label">
+                            <i class="bi bi-sticky"></i> {{ form.notas.label }}
+                        </label>
+                        {{ form.notas }}
+                        {% if form.notas.errors %}
+                            <div class="text-danger">{{ form.notas.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'listar_facturas' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-upload"></i> Subir y Procesar Factura
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+
+{% block title %}Detalle Factura - Control de Stock{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-receipt"></i> Detalle de Factura</h2>
+    <div>
+        <a href="{% url 'listar_facturas' %}" class="btn btn-secondary me-2">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+        <span class="badge {% if factura.estado == 'procesada' %}bg-success{% elif factura.estado == 'pendiente' %}bg-warning{% else %}bg-danger{% endif %}">
+            {% if factura.estado == 'procesada' %}Procesada{% elif factura.estado == 'pendiente' %}Pendiente{% else %}Rechazada{% endif %}
+        </span>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Información General</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tr>
+                        <th width="200">Número de Factura:</th>
+                        <td><strong>{{ factura.numero_factura|default:"N/A" }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Proveedor:</th>
+                        <td>{{ factura.proveedor.nombre|default:"Sin proveedor" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Fecha de Emisión:</th>
+                        <td>{{ factura.fecha_emision|date:"d/m/Y"|default:"N/A" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Fecha de Subida:</th>
+                        <td>{{ factura.fecha_subida|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Total:</th>
+                        <td><strong class="text-primary precio-destacado">${{ factura.total|floatformat:0 }}</strong></td>
+                    </tr>
+                    {% if factura.procesado_por %}
+                    <tr>
+                        <th>Procesado por:</th>
+                        <td>{{ factura.procesado_por.username }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if factura.notas %}
+                    <tr>
+                        <th>Notas:</th>
+                        <td>{{ factura.notas }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        <!-- Items -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-list-ul"></i> Items de la Factura</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Producto</th>
+                                <th>Nombre (OCR)</th>
+                                <th>Cantidad</th>
+                                <th>Precio Unit.</th>
+                                <th>Subtotal</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    {% if item.producto %}
+                                    <a href="{% url 'detalle_producto' item.producto.id %}">{{ item.producto.nombre }}</a>
+                                    {% else %}
+                                    <span class="text-muted">No asignado</span>
+                                    {% endif %}
+                                </td>
+                                <td><small class="text-muted">{{ item.nombre_producto }}</small></td>
+                                <td>{{ item.cantidad }}</td>
+                                <td>${{ item.precio_unitario|floatformat:0 }}</td>
+                                <td><strong>${{ item.subtotal|floatformat:0 }}</strong></td>
+                                <td>
+                                    {% if item.stock_actualizado %}
+                                    <span class="badge bg-success"><i class="bi bi-check-circle"></i> Stock actualizado</span>
+                                    {% else %}
+                                    <span class="badge bg-warning"><i class="bi bi-clock"></i> Pendiente</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-primary">
+                                <th colspan="4" class="text-end">TOTAL:</th>
+                                <th colspan="2">${{ factura.total|floatformat:0 }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- Archivo -->
+        {% if factura.archivo %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-file-earmark"></i> Archivo</h5>
+            </div>
+            <div class="card-body text-center">
+                <a href="{{ factura.archivo.url }}" target="_blank" class="btn btn-primary w-100 mb-2">
+                    <i class="bi bi-file-earmark-pdf"></i> Ver Factura Original
+                </a>
+                <small class="text-muted">{{ factura.archivo.name|slice:"20:" }}</small>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Acciones -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-gear"></i> Acciones</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'listar_facturas' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver a Facturas
+                    </a>
+                    {% if es_admin %}
+                    {% if factura.estado == 'pendiente' %}
+                    <a href="{% url 'editar_factura' factura.id %}" class="btn btn-warning">
+                        <i class="bi bi-pencil"></i> Editar Factura
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'eliminar_factura' factura.id %}" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Eliminar Factura
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

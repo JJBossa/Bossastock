@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Facturas - Control de Stock{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-receipt"></i> Gestión de Facturas</h2>
+    <div>
+        <a href="{% url 'inicio' %}" class="btn btn-secondary me-2">
+            <i class="bi bi-arrow-left"></i> Volver al Inicio
+        </a>
+        {% if es_admin %}
+        <a href="{% url 'subir_factura' %}" class="btn btn-primary">
+            <i class="bi bi-upload"></i> Subir Factura
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Estado</label>
+                <select name="estado" class="form-select">
+                    <option value="">Todos</option>
+                    <option value="pendiente" {% if estado_filtro == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                    <option value="procesada" {% if estado_filtro == 'procesada' %}selected{% endif %}>Procesada</option>
+                    <option value="rechazada" {% if estado_filtro == 'rechazada' %}selected{% endif %}>Rechazada</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Proveedor</label>
+                <select name="proveedor" class="form-select">
+                    <option value="">Todos</option>
+                    {% for prov in proveedores %}
+                    <option value="{{ prov.id }}" {% if proveedor_filtro == prov.id|stringformat:"s" %}selected{% endif %}>{{ prov.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="bi bi-funnel"></i> Filtrar
+                </button>
+                <a href="{% url 'listar_facturas' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Limpiar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Lista de facturas -->
+{% if facturas %}
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>Número</th>
+                <th>Proveedor</th>
+                <th>Fecha Emisión</th>
+                <th>Total</th>
+                <th>Estado</th>
+                <th>Fecha Subida</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for factura in facturas %}
+            <tr>
+                <td><strong>{{ factura.numero_factura|default:"N/A" }}</strong></td>
+                <td>{{ factura.proveedor.nombre|default:"Sin proveedor" }}</td>
+                <td>{{ factura.fecha_emision|date:"d/m/Y"|default:"N/A" }}</td>
+                <td><strong>${{ factura.total|floatformat:0 }}</strong></td>
+                <td>
+                    {% if factura.estado == 'procesada' %}
+                    <span class="badge bg-success">Procesada</span>
+                    {% elif factura.estado == 'pendiente' %}
+                    <span class="badge bg-warning">Pendiente</span>
+                    {% else %}
+                    <span class="badge bg-danger">Rechazada</span>
+                    {% endif %}
+                </td>
+                <td>{{ factura.fecha_subida|date:"d/m/Y H:i" }}</td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <a href="{% url 'detalle_factura' factura.id %}" class="btn btn-info">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        {% if es_admin %}
+                        {% if factura.estado == 'pendiente' %}
+                        <a href="{% url 'editar_factura' factura.id %}" class="btn btn-warning">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'eliminar_factura' factura.id %}" class="btn btn-danger">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Paginación -->
+{% if facturas.has_other_pages %}
+<nav aria-label="Paginación">
+    <ul class="pagination justify-content-center">
+        {% if facturas.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ facturas.previous_page_number }}&estado={{ estado_filtro }}&proveedor={{ proveedor_filtro }}">
+                <i class="bi bi-chevron-left"></i> Anterior
+            </a>
+        </li>
+        {% endif %}
+        <li class="page-item active">
+            <span class="page-link">Página {{ facturas.number }} de {{ facturas.paginator.num_pages }}</span>
+        </li>
+        {% if facturas.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ facturas.next_page_number }}&estado={{ estado_filtro }}&proveedor={{ proveedor_filtro }}">
+                Siguiente <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="alert alert-info text-center">
+    <i class="bi bi-info-circle icono-info-grande"></i>
+    <h4 class="mt-3">No hay facturas</h4>
+    <p>{% if es_admin %}Sube tu primera factura para comenzar.{% else %}No hay facturas registradas.{% endif %}</p>
+</div>
+{% endif %}
+{% endblock %}
+

@@ -1,0 +1,351 @@
+{% extends 'base.html' %}
+
+{% block title %}Inicio - Control de Stock{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item active" aria-current="page">
+            <i class="bi bi-house-door"></i> Inicio
+        </li>
+    </ol>
+</nav>
+
+{% if es_admin %}
+<div class="alert alert-info d-flex justify-content-between align-items-center" role="alert">
+    <div>
+        <i class="bi bi-shield-check"></i> <strong>Modo Administrador</strong> - Puedes editar y agregar productos
+    </div>
+    <div>
+        <a href="{% url 'dashboard' %}" class="btn btn-info btn-sm me-2">
+            <i class="bi bi-speedometer2"></i> Dashboard
+        </a>
+        <a href="{% url 'listar_facturas' %}" class="btn btn-success btn-sm me-2">
+            <i class="bi bi-receipt"></i> Facturas
+        </a>
+        <a href="{% url 'agregar_producto' %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle"></i> Agregar Producto
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<div class="stats-card">
+    <div class="row text-center">
+        <div class="col-md-3">
+            <h3><i class="bi bi-boxes"></i></h3>
+            <h4>{{ total_productos }}</h4>
+            <p class="mb-0">Total Productos</p>
+        </div>
+        <div class="col-md-3">
+            <h3><i class="bi bi-search"></i></h3>
+            <h4>{% if query or categoria_id or precio_min or precio_max or stock_bajo or con_imagen %}{{ productos.paginator.count }}{% else %}{{ total_productos }}{% endif %}</h4>
+            <p class="mb-0">{% if query or categoria_id or precio_min or precio_max or stock_bajo or con_imagen %}Resultados{% else %}Mostrando{% endif %}</p>
+        </div>
+        <div class="col-md-3">
+            <h3><i class="bi bi-exclamation-triangle"></i></h3>
+            <h4>{{ productos_stock_bajo_count }}</h4>
+            <p class="mb-0">Stock Bajo</p>
+        </div>
+        <div class="col-md-3">
+            <h3><i class="bi bi-list-ul"></i></h3>
+            <h4>{{ productos.paginator.num_pages }}</h4>
+            <p class="mb-0">Página{{ productos.paginator.num_pages|pluralize }}</p>
+        </div>
+    </div>
+</div>
+
+<div class="search-container">
+    <form method="get" action="{% url 'inicio' %}" class="row g-3">
+        <div class="col-md-6">
+            <div class="input-group input-group-lg">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" 
+                       class="form-control" 
+                       name="q" 
+                       value="{{ query }}" 
+                       placeholder="Buscar por nombre, SKU o descripción...">
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select name="categoria" class="form-select form-select-lg">
+                <option value="">Todas las categorías</option>
+                {% for cat in categorias %}
+                <option value="{{ cat.id }}" {% if categoria_id == cat.id|stringformat:"s" %}selected{% endif %}>
+                    {{ cat.nombre }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="orden" class="form-select form-select-lg">
+                <option value="nombre_asc" {% if orden == 'nombre_asc' %}selected{% endif %}>Nombre A-Z</option>
+                <option value="nombre_desc" {% if orden == 'nombre_desc' %}selected{% endif %}>Nombre Z-A</option>
+                <option value="precio_asc" {% if orden == 'precio_asc' %}selected{% endif %}>Precio: Menor a Mayor</option>
+                <option value="precio_desc" {% if orden == 'precio_desc' %}selected{% endif %}>Precio: Mayor a Menor</option>
+                <option value="stock_asc" {% if orden == 'stock_asc' %}selected{% endif %}>Stock: Menor a Mayor</option>
+                <option value="stock_desc" {% if orden == 'stock_desc' %}selected{% endif %}>Stock: Mayor a Menor</option>
+                <option value="fecha_desc" {% if orden == 'fecha_desc' %}selected{% endif %}>Más Recientes</option>
+            </select>
+        </div>
+        
+        <div class="col-md-2">
+            <label class="form-label d-block"><i class="bi bi-layout-grid"></i> Vista</label>
+            <select name="vista" class="form-select form-select-lg">
+                <option value="grid" {% if vista == 'grid' %}selected{% endif %}>Cuadrícula</option>
+                <option value="lista" {% if vista == 'lista' %}selected{% endif %}>Lista</option>
+            </select>
+        </div>
+        
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-search"></i> Buscar
+            </button>
+            <a href="{% url 'inicio' %}" class="btn btn-secondary">
+                <i class="bi bi-x-circle"></i> Limpiar Filtros
+            </a>
+            
+            <!-- Botón para mostrar/ocultar filtros avanzados -->
+            <button type="button" class="btn btn-outline-secondary ms-2" data-bs-toggle="collapse" data-bs-target="#filtrosAvanzados" aria-expanded="false" aria-controls="filtrosAvanzados">
+                <i class="bi bi-funnel"></i> Filtros Avanzados
+            </button>
+        </div>
+        
+        <!-- Filtros avanzados colapsables -->
+        <div class="collapse filtros-avanzados" id="filtrosAvanzados">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label"><i class="bi bi-currency-dollar"></i> Precio Mínimo</label>
+                    <input type="number" name="precio_min" class="form-control" placeholder="Precio mínimo" value="{{ precio_min }}" step="0.01">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label"><i class="bi bi-currency-dollar"></i> Precio Máximo</label>
+                    <input type="number" name="precio_max" class="form-control" placeholder="Precio máximo" value="{{ precio_max }}" step="0.01">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label"><i class="bi bi-exclamation-triangle"></i> Stock</label>
+                    <select name="stock_bajo" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="1" {% if stock_bajo == '1' %}selected{% endif %}>Solo Stock Bajo</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label"><i class="bi bi-image"></i> Imagen</label>
+                    <select name="con_imagen" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="1" {% if con_imagen == '1' %}selected{% endif %}>Con Imagen</option>
+                        <option value="0" {% if con_imagen == '0' %}selected{% endif %}>Sin Imagen</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+            {% if es_admin %}
+            <div class="btn-group ms-2">
+                <a href="{% url 'exportar_excel' %}" class="btn btn-success btn-sm">
+                    <i class="bi bi-file-earmark-excel"></i> Excel
+                </a>
+                <a href="{% url 'exportar_pdf' %}" class="btn btn-danger btn-sm">
+                    <i class="bi bi-file-earmark-pdf"></i> PDF
+                </a>
+                <a href="{% url 'exportar_csv' %}" class="btn btn-info btn-sm">
+                    <i class="bi bi-file-earmark-spreadsheet"></i> CSV
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+{% if productos_stock_bajo_count > 0 %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i> 
+    <strong>Atención:</strong> Hay {{ productos_stock_bajo_count }} producto(s) con stock bajo.
+    {% if es_admin %}
+    <a href="{% url 'inicio' %}?stock_bajo=1" class="btn btn-warning btn-sm ms-2">Ver Productos con Stock Bajo</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if productos %}
+<div class="{% if vista == 'lista' %}vista-lista{% else %}row{% endif %}">
+    {% for producto in productos %}
+    <div class="{% if vista == 'lista' %}col-12{% else %}col-md-4 col-lg-3{% endif %}">
+        <div class="card card-producto h-100">
+            {% if producto.imagen %}
+            <img src="{{ producto.imagen.url }}" class="card-img-top producto-imagen" alt="{{ producto.nombre }}">
+            {% else %}
+            <div class="card-img-top d-flex align-items-center justify-content-center producto-placeholder">
+                <i class="bi bi-image producto-placeholder-icon"></i>
+            </div>
+            {% endif %}
+            <div class="card-body">
+                {% if vista == 'lista' %}
+                <div class="producto-info">
+                    <div class="flex-grow-1">
+                        <h5 class="card-title mb-2">
+                            <i class="bi bi-box-seam text-primary"></i>
+                            <a href="{% url 'detalle_producto' producto.id %}" class="text-decoration-none text-dark">
+                                {{ producto.nombre }}
+                            </a>
+                        </h5>
+                        {% if producto.sku %}
+                        <small class="text-muted d-block mb-2"><i class="bi bi-upc"></i> SKU: {{ producto.sku }}</small>
+                        {% endif %}
+                        {% if producto.categoria %}
+                        <span class="badge badge-categoria mb-2" style="background-color: {{ producto.categoria.color }};">
+                            {{ producto.categoria.nombre }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="text-center" style="min-width: 120px;">
+                        <div class="precio mb-2">${{ producto.precio|floatformat:0 }}</div>
+                        {% if producto.stock > 10 %}
+                        <span class="badge bg-success badge-stock">
+                            <i class="bi bi-check-circle"></i> {{ producto.stock }}
+                        </span>
+                        {% elif producto.stock > 0 %}
+                        <span class="badge bg-warning badge-stock">
+                            <i class="bi bi-exclamation-triangle"></i> {{ producto.stock }}
+                        </span>
+                        {% else %}
+                        <span class="badge bg-danger badge-stock">
+                            <i class="bi bi-x-circle"></i> Sin stock
+                        </span>
+                        {% endif %}
+                    </div>
+                    {% if es_admin %}
+                    <div class="d-flex gap-2" style="min-width: 150px;">
+                        <a href="{% url 'editar_producto' producto.id %}" class="btn btn-sm btn-warning flex-fill">
+                            <i class="bi bi-pencil-square"></i> Editar
+                        </a>
+                        <a href="{% url 'eliminar_producto' producto.id %}" class="btn btn-sm btn-danger" onclick="return confirm('¿Estás seguro de eliminar este producto?');" title="Eliminar">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <h5 class="card-title">
+                    <i class="bi bi-box-seam text-primary"></i>
+                    <a href="{% url 'detalle_producto' producto.id %}" class="text-decoration-none text-dark">
+                        {{ producto.nombre|truncatewords:8 }}
+                    </a>
+                </h5>
+                {% if producto.categoria %}
+                <div class="mb-2">
+                    <span class="badge badge-categoria" style="background-color: {{ producto.categoria.color }};">
+                        {{ producto.categoria.nombre }}
+                    </span>
+                </div>
+                {% endif %}
+                {% if producto.sku %}
+                <small class="text-muted">SKU: {{ producto.sku }}</small>
+                {% endif %}
+                <hr>
+                <div class="mb-3">
+                    <span class="text-muted">Precio:</span>
+                    <div class="precio">${{ producto.precio|floatformat:0 }}</div>
+                </div>
+                <div class="mb-3">
+                    <span class="text-muted">Stock:</span>
+                    {% if producto.stock > 10 %}
+                    <span class="badge bg-success badge-stock">
+                        <i class="bi bi-check-circle"></i> {{ producto.stock }} unidades
+                    </span>
+                    {% elif producto.stock > 0 %}
+                    <span class="badge bg-warning badge-stock">
+                        <i class="bi bi-exclamation-triangle"></i> {{ producto.stock }} unidades
+                    </span>
+                    {% else %}
+                    <span class="badge bg-danger badge-stock">
+                        <i class="bi bi-x-circle"></i> Sin stock
+                    </span>
+                    {% endif %}
+                </div>
+                {% if es_admin %}
+                <hr>
+                <div class="d-grid gap-2">
+                    <a href="{% url 'editar_producto' producto.id %}" class="btn btn-sm btn-warning">
+                        <i class="bi bi-pencil-square"></i> Editar
+                    </a>
+                    <a href="{% url 'eliminar_producto' producto.id %}" class="btn btn-sm btn-danger" onclick="return confirm('¿Estás seguro de eliminar este producto?');">
+                        <i class="bi bi-trash"></i> Eliminar
+                    </a>
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if productos.has_other_pages %}
+<nav aria-label="Paginación" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if productos.has_previous %}
+        <li class="page-item">
+            <a class="page-link btn-pagination" href="?q={{ query }}&orden={{ orden }}&categoria={{ categoria_id }}&precio_min={{ precio_min }}&precio_max={{ precio_max }}&stock_bajo={{ stock_bajo }}&con_imagen={{ con_imagen }}&vista={{ vista }}&page={{ productos.previous_page_number }}">
+                <i class="bi bi-chevron-left"></i> Anterior
+            </a>
+        </li>
+        {% endif %}
+        
+        <li class="page-item active">
+            <span class="page-link bg-primary text-white border-primary">Página {{ productos.number }} de {{ productos.paginator.num_pages }}</span>
+        </li>
+        
+        {% if productos.has_next %}
+        <li class="page-item">
+            <a class="page-link btn-pagination" href="?q={{ query }}&orden={{ orden }}&categoria={{ categoria_id }}&precio_min={{ precio_min }}&precio_max={{ precio_max }}&stock_bajo={{ stock_bajo }}&con_imagen={{ con_imagen }}&vista={{ vista }}&page={{ productos.next_page_number }}">
+                Siguiente <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="alert alert-info text-center" role="alert">
+    <i class="bi bi-info-circle icono-info-grande"></i>
+    <h4 class="mt-3">No se encontraron productos</h4>
+    <p>{% if query %}Intenta con otro término de búsqueda.{% else %}No hay productos en el inventario.{% endif %}</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Mantener filtros avanzados abiertos si hay filtros activos
+    document.addEventListener('DOMContentLoaded', function() {
+        const precioMin = '{{ precio_min }}';
+        const precioMax = '{{ precio_max }}';
+        const stockBajo = '{{ stock_bajo }}';
+        const conImagen = '{{ con_imagen }}';
+        
+        if (precioMin || precioMax || stockBajo || conImagen) {
+            const filtrosAvanzados = document.getElementById('filtrosAvanzados');
+            if (filtrosAvanzados) {
+                filtrosAvanzados.classList.add('show');
+            }
+        }
+        
+        // Mejorar la experiencia de cambio de vista
+        const vistaSelect = document.querySelector('select[name="vista"]');
+        if (vistaSelect) {
+            vistaSelect.addEventListener('change', function() {
+                // Agregar una pequeña animación al cambiar de vista
+                const productosContainer = document.querySelector('.row, .vista-lista');
+                if (productosContainer) {
+                    productosContainer.style.opacity = '0.5';
+                    setTimeout(function() {
+                        productosContainer.style.opacity = '1';
+                    }, 200);
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
+
