@@ -21,7 +21,7 @@ class CategoriaAdmin(admin.ModelAdmin):
 
 @admin.register(Producto)
 class ProductoAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'sku', 'categoria', 'precio', 'stock', 'stock_bajo_indicator', 'fecha_actualizacion', 'imagen_preview')
+    list_display = ('nombre', 'sku', 'categoria', 'precio', 'precio_promo', 'stock', 'stock_bajo_indicator', 'fecha_actualizacion', 'imagen_preview')
     list_filter = ('categoria', 'activo', 'fecha_creacion', 'stock')
     search_fields = ('nombre', 'sku', 'descripcion')
     ordering = ('nombre',)
@@ -31,7 +31,7 @@ class ProductoAdmin(admin.ModelAdmin):
             'fields': ('nombre', 'sku', 'descripcion', 'categoria', 'activo')
         }),
         ('Precio y Stock', {
-            'fields': ('precio', 'stock', 'stock_minimo')
+            'fields': ('precio', 'precio_promo', 'stock', 'stock_minimo')
         }),
         ('Imagen', {
             'fields': ('imagen', 'imagen_preview')

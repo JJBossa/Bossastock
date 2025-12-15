@@ -142,6 +142,16 @@ body {
     color: var(--primary-color);
 }
 
+.precio-promo {
+    color: var(--success-color);
+    font-weight: bold;
+}
+
+.precio-tachado {
+    color: var(--text-muted);
+    text-decoration: line-through;
+}
+
 /* Tarjeta de estadísticas */
 .stats-card {
     background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
@@ -447,16 +457,20 @@ body {
 }
 
 /* Mejoras en paginación */
+.pagination {
+    margin-bottom: 0;
+}
+
 .pagination .page-link {
-    border-radius: 8px;
-    margin: 0 4px;
-    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    margin: 0 2px;
+    border: 1px solid var(--border-color);
     color: var(--primary-color);
     transition: all 0.3s ease;
     font-weight: 500;
-    padding: 0.6rem 1.2rem;
-    min-width: 120px;
+    padding: 0.5rem 0.9rem;
     text-align: center;
+    min-width: auto;
 }
 
 .pagination .page-link:hover {
@@ -468,11 +482,40 @@ body {
 }
 
 .pagination .page-item.active .page-link {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
+    background-color: #475569;
+    border-color: #475569;
     color: white;
     font-weight: 600;
     box-shadow: var(--shadow-sm);
+    cursor: default;
+}
+
+.pagination .page-item.disabled .page-link {
+    background-color: transparent;
+    border-color: var(--border-color);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.pagination .page-item.disabled .page-link:hover {
+    transform: none;
+    box-shadow: none;
+    background-color: transparent;
+    border-color: var(--border-color);
+    color: var(--text-muted);
+}
+
+/* Input de ir a página */
+.pagination .form-control-sm {
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.pagination .form-control-sm:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
 }
 
 .btn-pagination {

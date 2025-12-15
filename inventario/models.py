@@ -47,7 +47,16 @@ class Producto(models.Model):
         max_digits=10, 
         decimal_places=0, 
         validators=[MinValueValidator(0)],
-        verbose_name="Precio"
+        verbose_name="Precio Unidad"
+    )
+    precio_promo = models.DecimalField(
+        max_digits=10,
+        decimal_places=0,
+        validators=[MinValueValidator(0)],
+        blank=True,
+        null=True,
+        verbose_name="Precio Promo",
+        help_text="Precio promocional (opcional)"
     )
     stock = models.IntegerField(
         default=0,

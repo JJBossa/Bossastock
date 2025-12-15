@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Inicio - Control de Stock{% endblock %}
+{% block title %}Bossastock{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
@@ -198,7 +198,23 @@
                         {% endif %}
                     </div>
                     <div class="text-center" style="min-width: 120px;">
+                        {% if producto.precio_promo %}
+                        <div class="mb-1">
+                            <small class="text-muted">Precio unidad:</small>
+                            <div class="text-muted">${{ producto.precio|floatformat:0 }}</div>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted">Precio promo:</small>
+                            <div class="precio text-success">
+                                <strong>${{ producto.precio_promo|floatformat:0 }}</strong>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="mb-1">
+                            <small class="text-muted">Precio unidad:</small>
+                        </div>
                         <div class="precio mb-2">${{ producto.precio|floatformat:0 }}</div>
+                        {% endif %}
                         {% if producto.stock > 10 %}
                         <span class="badge bg-success badge-stock">
                             <i class="bi bi-check-circle"></i> {{ producto.stock }}
@@ -243,8 +259,19 @@
                 {% endif %}
                 <hr>
                 <div class="mb-3">
-                    <span class="text-muted">Precio:</span>
+                    {% if producto.precio_promo %}
+                    <div class="mb-2">
+                        <span class="text-muted">Precio unidad:</span>
+                        <div class="text-muted">${{ producto.precio|floatformat:0 }}</div>
+                    </div>
+                    <div>
+                        <span class="text-muted">Precio promo:</span>
+                        <div class="precio text-success"><strong>${{ producto.precio_promo|floatformat:0 }}</strong></div>
+                    </div>
+                    {% else %}
+                    <span class="text-muted">Precio unidad:</span>
                     <div class="precio">${{ producto.precio|floatformat:0 }}</div>
+                    {% endif %}
                 </div>
                 <div class="mb-3">
                     <span class="text-muted">Stock:</span>

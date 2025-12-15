@@ -22,5 +22,7 @@ urlpatterns = [
     path('facturas/<int:factura_id>/editar/', views_facturas.editar_factura, name='editar_factura'),
     path('facturas/<int:factura_id>/eliminar/', views_facturas.eliminar_factura, name='eliminar_factura'),
     path('proveedores/', views_facturas.gestionar_proveedores, name='gestionar_proveedores'),
+    # Código de barras
+    path('api/buscar-codigo-barras/', views_facturas.buscar_producto_codigo_barras, name='buscar_codigo_barras'),
 ]
 

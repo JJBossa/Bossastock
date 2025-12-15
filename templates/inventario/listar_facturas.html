@@ -109,27 +109,130 @@
 
 <!-- Paginación -->
 {% if facturas.has_other_pages %}
-<nav aria-label="Paginación">
-    <ul class="pagination justify-content-center">
-        {% if facturas.has_previous %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ facturas.previous_page_number }}&estado={{ estado_filtro }}&proveedor={{ proveedor_filtro }}">
-                <i class="bi bi-chevron-left"></i> Anterior
-            </a>
-        </li>
-        {% endif %}
-        <li class="page-item active">
-            <span class="page-link">Página {{ facturas.number }} de {{ facturas.paginator.num_pages }}</span>
-        </li>
-        {% if facturas.has_next %}
-        <li class="page-item">
-            <a class="page-link" href="?page={{ facturas.next_page_number }}&estado={{ estado_filtro }}&proveedor={{ proveedor_filtro }}">
-                Siguiente <i class="bi bi-chevron-right"></i>
-            </a>
-        </li>
-        {% endif %}
-    </ul>
-</nav>
+<div class="d-flex flex-column align-items-center my-4">
+    <nav aria-label="Paginación">
+        <ul class="pagination justify-content-center flex-wrap">
+            <!-- Primera página -->
+            {% if facturas.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1&estado={{ estado_filtro }}&proveedor={{ proveedor_filtro }}" title="Primera página">
+                    <i class="bi bi-chevron-double-left"></i>
+                </a>
+            </li>
+            <!-- Anterior -->
+            <li class="page-item">
+                <a class="page-link" href="?page={{ facturas.previous_page_number }}&estado={{ estado_filtro }}&proveedor={{ proveedor_filtro }}">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link"><i class="bi bi-chevron-double-left"></i></span>
+            </li>
+            <li class="page-item disabled">
+                <span class="page-link"><i class="bi bi-chevron-left"></i></span>
+            </li>
+            {% endif %}
+
+            <!-- Saltos rápidos hacia atrás -->
+            {% if facturas.number > 10 %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ facturas.number|add:'-10' }}&estado={{ estado_filtro }}&proveedor={{ proveedor_filtro }}" title="-10 páginas">
+                    -10
+                </a>
+            </li>
+            {% endif %}
+
+            <!-- Números de página -->
+            {% with current=facturas.number total=facturas.paginator.num_pages %}
+                {% if current != 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1&estado={{ estado_filtro }}&proveedor={{ proveedor_filtro }}">1</a>
+                </li>
+                {% endif %}
+                
+                {% if current > 4 %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+                {% endif %}
+                
+                {% for num in facturas.paginator.page_range %}
+                    {% if num == current %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > current|add:'-3' and num < current|add:'3' and num != 1 and num != total %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}&estado={{ estado_filtro }}&proveedor={{ proveedor_filtro }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if current < total|add:'-3' %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+                {% endif %}
+                
+                {% if current != total and total > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ total }}&estado={{ estado_filtro }}&proveedor={{ proveedor_filtro }}">{{ total }}</a>
+                </li>
+                {% endif %}
+            {% endwith %}
+
+            <!-- Saltos rápidos hacia adelante -->
+            {% if facturas.number < facturas.paginator.num_pages|add:'-9' %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ facturas.number|add:'10' }}&estado={{ estado_filtro }}&proveedor={{ proveedor_filtro }}" title="+10 páginas">
+                    +10
+                </a>
+            </li>
+            {% endif %}
+
+            <!-- Siguiente -->
+            {% if facturas.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ facturas.next_page_number }}&estado={{ estado_filtro }}&proveedor={{ proveedor_filtro }}">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+            <!-- Última página -->
+            <li class="page-item">
+                <a class="page-link" href="?page={{ facturas.paginator.num_pages }}&estado={{ estado_filtro }}&proveedor={{ proveedor_filtro }}" title="Última página">
+                    <i class="bi bi-chevron-double-right"></i>
+                </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link"><i class="bi bi-chevron-right"></i></span>
+            </li>
+            <li class="page-item disabled">
+                <span class="page-link"><i class="bi bi-chevron-double-right"></i></span>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    
+    <!-- Input para ir a página específica -->
+    <div class="mt-3 d-flex align-items-center gap-2">
+        <label class="mb-0 text-muted">Ir a página:</label>
+        <form method="get" class="d-inline-flex align-items-center gap-2" onsubmit="return validarPagina(this);">
+            <input type="hidden" name="estado" value="{{ estado_filtro }}">
+            <input type="hidden" name="proveedor" value="{{ proveedor_filtro }}">
+            <input type="number" name="page" min="1" max="{{ facturas.paginator.num_pages }}" 
+                   value="{{ facturas.number }}" 
+                   class="form-control form-control-sm" 
+                   style="width: 80px; text-align: center;"
+                   id="goToPage">
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="bi bi-arrow-right"></i> Ir
+            </button>
+        </form>
+        <span class="text-muted small ms-2">de {{ facturas.paginator.num_pages }}</span>
+    </div>
+</div>
 {% endif %}
 
 {% else %}
@@ -139,5 +242,27 @@
     <p>{% if es_admin %}Sube tu primera factura para comenzar.{% else %}No hay facturas registradas.{% endif %}</p>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function validarPagina(form) {
+    const input = form.querySelector('input[name="page"]');
+    const maxPage = parseInt(input.getAttribute('max'));
+    const value = parseInt(input.value);
+    
+    if (isNaN(value) || value < 1) {
+        input.value = 1;
+        return true;
+    }
+    
+    if (value > maxPage) {
+        input.value = maxPage;
+        return true;
+    }
+    
+    return true;
+}
+</script>
 {% endblock %}
 

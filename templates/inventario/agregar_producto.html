@@ -51,6 +51,10 @@
                                 <i class="bi bi-tags"></i> {{ form.categoria.label }}
                             </label>
                             {{ form.categoria }}
+                            <div id="categoria-warning" class="alert alert-warning mt-2" style="display: none;">
+                                <i class="bi bi-exclamation-triangle"></i> 
+                                <strong>Advertencia:</strong> No has seleccionado una categoría. Es recomendable asignar una categoría para una mejor organización del inventario.
+                            </div>
                             {% if form.categoria.errors %}
                                 <div class="text-danger">{{ form.categoria.errors }}</div>
                             {% endif %}
@@ -78,6 +82,20 @@
                             </div>
                             {% if form.precio.errors %}
                                 <div class="text-danger">{{ form.precio.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.precio_promo.id_for_label }}" class="form-label">
+                                <i class="bi bi-tag-fill"></i> {{ form.precio_promo.label }}
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {{ form.precio_promo }}
+                            </div>
+                            <small class="form-text text-muted">Opcional</small>
+                            {% if form.precio_promo.errors %}
+                                <div class="text-danger">{{ form.precio_promo.errors }}</div>
                             {% endif %}
                         </div>
 
@@ -140,5 +158,31 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const categoriaSelect = document.getElementById('{{ form.categoria.id_for_label }}');
+    const categoriaWarning = document.getElementById('categoria-warning');
+    
+    function verificarCategoria() {
+        if (categoriaSelect && categoriaWarning) {
+            if (categoriaSelect.value === '' || categoriaSelect.value === null) {
+                categoriaWarning.style.display = 'block';
+            } else {
+                categoriaWarning.style.display = 'none';
+            }
+        }
+    }
+    
+    // Verificar al cargar la página
+    verificarCategoria();
+    
+    // Verificar cuando cambia la selección
+    if (categoriaSelect) {
+        categoriaSelect.addEventListener('change', verificarCategoria);
+    }
+});
+</script>
+
 {% endblock %}
 

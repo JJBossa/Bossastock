@@ -199,7 +199,7 @@ def inicio(request):
     if con_imagen == '1':
         productos = productos.exclude(imagen__isnull=True).exclude(imagen='')
     elif con_imagen == '0':
-        productos = productos.filter(imagen__isnull=True) | productos.filter(imagen='')
+        productos = productos.filter(Q(imagen__isnull=True) | Q(imagen=''))
     
     # Búsqueda
     if query:

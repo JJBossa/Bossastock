@@ -1,17 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, Q
 from django.core.paginator import Paginator
-from .models import Factura, ItemFactura, Proveedor, Producto, HistorialCambio
+from django.http import JsonResponse
+from .models import Factura, ItemFactura, Proveedor, Producto, HistorialCambio, Categoria
 from .forms_facturas import FacturaForm, ItemFacturaForm, ProveedorForm
-from .utils_ocr import (
-    procesar_imagen_ocr, 
-    extraer_fecha, 
-    extraer_numero_factura, 
-    extraer_total,
-    extraer_items_factura
-)
+from .utils_ocr import extraer_texto_ocr, extraer_items_factura
 from .views import es_admin_bossa, registrar_cambio
 
 @login_required
@@ -51,54 +46,99 @@ def subir_factura(request):
     if not es_admin_bossa(request.user):
         messages.error(request, 'No tienes permisos para realizar esta acción.')
         return redirect('inicio')
-    
+
     if request.method == 'POST':
         form = FacturaForm(request.POST, request.FILES)
         if form.is_valid():
             factura = form.save(commit=False)
-            
-            # Procesar OCR
-            texto_extraido = procesar_imagen_ocr(factura.archivo)
-            factura.texto_extraido = texto_extraido
-            
-            # Extraer información automáticamente
-            if not factura.numero_factura:
-                factura.numero_factura = extraer_numero_factura(texto_extraido)
-            
-            if not factura.fecha_emision:
-                factura.fecha_emision = extraer_fecha(texto_extraido)
-            
-            if not factura.total:
-                factura.total = extraer_total(texto_extraido) or 0
-            
-            factura.save()
-            
-            # Extraer items de la factura
-            productos = Producto.objects.filter(activo=True)
-            items_detectados = extraer_items_factura(texto_extraido, productos)
-            
-            # Crear items
-            for item_data in items_detectados:
-                ItemFactura.objects.create(
-                    factura=factura,
-                    producto=item_data.get('producto'),
-                    nombre_producto=item_data['nombre_producto'],
-                    cantidad=item_data['cantidad'],
-                    precio_unitario=item_data['precio_unitario'],
-                    subtotal=item_data['subtotal'],
-                    producto_coincidencia=item_data['producto_coincidencia']
+            factura.save()  # Guardar primero para tener el archivo disponible
+
+            # =====================
+            # PROCESAR OCR
+            # =====================
+            texto_extraido = ""
+            try:
+                ruta_imagen = factura.archivo.path
+                
+                # Verificar que el archivo existe
+                import os
+                if not os.path.exists(ruta_imagen):
+                    messages.error(request, f'El archivo no se encontró en: {ruta_imagen}')
+                else:
+                    texto_extraido = extraer_texto_ocr(ruta_imagen)
+                    factura.texto_extraido = texto_extraido
+                    factura.save()
+                    
+                    # Debug: mostrar longitud del texto extraído
+                    if texto_extraido:
+                        messages.success(
+                            request, 
+                            f'OCR completado exitosamente. Se extrajeron {len(texto_extraido)} caracteres de texto.'
+                        )
+                    else:
+                        messages.warning(
+                            request,
+                            'OCR completado pero no se extrajo texto. '
+                            'Verifica que la imagen sea legible y tenga buena calidad.'
+                        )
+                        
+            except Exception as e:
+                import traceback
+                error_detalle = traceback.format_exc()
+                messages.error(
+                    request, 
+                    f'Error al procesar OCR: {str(e)}. '
+                    'Verifica la consola del servidor para más detalles.'
                 )
-            
-            # Si no se detectaron items, mostrar advertencia
-            if len(items_detectados) == 0:
-                messages.warning(request, 'Factura subida pero no se detectaron items automáticamente. Puedes agregarlos manualmente.')
+                print(f"Error detallado en OCR:\n{error_detalle}")
+
+            # =====================
+            # EXTRAER ITEMS DE LA FACTURA
+            # =====================
+            items_detectados = []
+            if texto_extraido:
+                try:
+                    items_detectados = extraer_items_factura(texto_extraido)
+                except Exception as e:
+                    messages.warning(
+                        request, 
+                        f'Error al extraer items automáticamente: {str(e)}. '
+                        'Puedes agregarlos manualmente.'
+                    )
+
+            # Crear items detectados en la base de datos
+            for item in items_detectados:
+                try:
+                    ItemFactura.objects.create(
+                        factura=factura,
+                        nombre_producto=item['nombre'],
+                        cantidad=item['cantidad'],
+                        precio_unitario=item['precio'],
+                        subtotal=item['cantidad'] * item['precio']
+                    )
+                except Exception as e:
+                    messages.warning(
+                        request, 
+                        f'Error al guardar item "{item.get("nombre", "desconocido")}": {str(e)}'
+                    )
+
+            # Mensajes de resultado
+            if not items_detectados:
+                messages.info(
+                    request,
+                    'Factura subida correctamente. No se detectaron items automáticamente. '
+                    'Puedes agregarlos manualmente en la siguiente pantalla.'
+                )
             else:
-                messages.success(request, f'Factura subida y procesada exitosamente. Se detectaron {len(items_detectados)} items.')
-            
+                messages.success(
+                    request,
+                    f'Factura procesada exitosamente. Se detectaron {len(items_detectados)} item(s).'
+                )
+
             return redirect('editar_factura', factura_id=factura.id)
     else:
         form = FacturaForm()
-    
+
     return render(request, 'inventario/subir_factura.html', {
         'form': form,
         'es_admin': True,
@@ -117,14 +157,54 @@ def editar_factura(request, factura_id):
     
     if request.method == 'POST':
         if 'confirmar' in request.POST:
-            # Procesar actualización de stock
+            # Procesar creación de productos y actualización de stock
+            productos_creados = 0
             items_actualizados = 0
             
             for item in items:
-                if item.producto and not item.stock_actualizado:
-                    # Actualizar stock
+                # Verificar si se debe crear un nuevo producto
+                crear_producto = request.POST.get(f'crear_producto_{item.id}', '') == 'on'
+                
+                if crear_producto and not item.producto:
+                    # Crear nuevo producto desde el item
+                    try:
+                        # Obtener categoría por defecto o primera disponible
+                        categoria = Categoria.objects.first()
+                        
+                        nuevo_producto = Producto.objects.create(
+                            nombre=item.nombre_producto,
+                            precio=item.precio_unitario,
+                            stock=item.cantidad,
+                            categoria=categoria,
+                            activo=True
+                        )
+                        
+                        item.producto = nuevo_producto
+                        item.save()
+                        
+                        # Registrar creación
+                        registrar_cambio(
+                            nuevo_producto,
+                            request.user,
+                            'crear',
+                            descripcion=f'Producto creado desde factura {factura.numero_factura or factura.id}'
+                        )
+                        
+                        productos_creados += 1
+                        items_actualizados += 1
+                        
+                    except Exception as e:
+                        messages.error(request, f'Error al crear producto {item.nombre_producto}: {str(e)}')
+                
+                elif item.producto and not item.stock_actualizado:
+                    # Actualizar stock de producto existente
                     stock_anterior = item.producto.stock
                     item.producto.stock += item.cantidad
+                    
+                    # Actualizar precio si es diferente
+                    if item.producto.precio != item.precio_unitario:
+                        item.producto.precio = item.precio_unitario
+                    
                     item.producto.save()
                     
                     # Registrar cambio
@@ -135,7 +215,7 @@ def editar_factura(request, factura_id):
                         'stock',
                         stock_anterior,
                         item.producto.stock,
-                        f'Actualizado desde factura {factura.numero_factura}'
+                        f'Actualizado desde factura {factura.numero_factura or factura.id}'
                     )
                     
                     item.stock_actualizado = True
@@ -146,7 +226,13 @@ def editar_factura(request, factura_id):
             factura.procesado_por = request.user
             factura.save()
             
-            messages.success(request, f'Factura procesada. Stock actualizado para {items_actualizados} productos.')
+            mensaje = f'Factura procesada exitosamente. '
+            if productos_creados > 0:
+                mensaje += f'Se crearon {productos_creados} producto(s) nuevo(s). '
+            if items_actualizados > 0:
+                mensaje += f'Stock actualizado para {items_actualizados} item(s).'
+            
+            messages.success(request, mensaje)
             return redirect('detalle_factura', factura_id=factura.id)
         
         elif 'guardar_items' in request.POST:
@@ -186,7 +272,11 @@ def editar_factura(request, factura_id):
             # Agregar nuevo item
             nombre = request.POST.get('nombre_nuevo')
             cantidad = int(request.POST.get('cantidad_nuevo', 1))
-            precio = int(request.POST.get('precio_nuevo', 0).replace('.', '').replace(',', ''))
+            precio_str = request.POST.get('precio_nuevo', '0').replace('.', '').replace(',', '').replace('$', '').strip()
+            try:
+                precio = int(precio_str) if precio_str else 0
+            except:
+                precio = 0
             producto_id = request.POST.get('producto_nuevo')
             
             ItemFactura.objects.create(
@@ -293,3 +383,38 @@ def gestionar_proveedores(request):
         'es_admin': True,
     })
 
+
+@login_required
+def buscar_producto_codigo_barras(request):
+    """
+    API endpoint para buscar producto por código de barras (SKU).
+    Usado por el escáner de códigos de barras.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    
+    codigo = request.POST.get('codigo', '').strip()
+    
+    if not codigo:
+        return JsonResponse({'error': 'Código de barras requerido'}, status=400)
+    
+    try:
+        # Buscar por SKU (código de barras)
+        producto = Producto.objects.get(sku=codigo, activo=True)
+        return JsonResponse({
+            'encontrado': True,
+            'producto': {
+                'id': producto.id,
+                'nombre': producto.nombre,
+                'precio': float(producto.precio),
+                'stock': producto.stock,
+                'categoria': producto.categoria.nombre if producto.categoria else None,
+            }
+        })
+    except Producto.DoesNotExist:
+        return JsonResponse({
+            'encontrado': False,
+            'mensaje': f'Producto con código {codigo} no encontrado'
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

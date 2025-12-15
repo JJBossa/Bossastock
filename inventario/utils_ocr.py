@@ -1,454 +1,491 @@
-"""
-Utilidades para procesamiento OCR de facturas chilenas
-Incluye preprocesamiento de imágenes para mejorar la precisión del OCR
-"""
 import pytesseract
-from PIL import Image, ImageEnhance, ImageFilter
 import re
-from pdf2image import convert_from_path
-import io
-from django.conf import settings
 import os
-import numpy as np
+from PIL import Image
 
-# Configurar ruta de Tesseract si es necesario (Windows)
-# Descomentar y ajustar la ruta según tu instalación:
-# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# Intentar importar cv2 (opcional)
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
 
-def preprocesar_imagen(imagen):
+# Intentar importar pdf2image (para PDFs)
+try:
+    from pdf2image import convert_from_path
+    PDF2IMAGE_AVAILABLE = True
+except ImportError:
+    PDF2IMAGE_AVAILABLE = False
+
+# ⚠️ IMPORTANTE: ruta correcta en Windows
+# Configurar ruta de Tesseract si está en la ubicación por defecto de Windows
+if os.name == 'nt':  # Windows
+    tesseract_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    if os.path.exists(tesseract_path):
+        pytesseract.pytesseract.tesseract_cmd = tesseract_path
+
+# Idioma a usar para OCR (español)
+OCR_LANG = "spa"
+
+
+def procesar_imagen_ocr(img, usar_color=False):
     """
-    Preprocesa una imagen para mejorar la precisión del OCR
+    Procesa una imagen (PIL o numpy array) con OCR.
     
     Args:
-        imagen: Objeto PIL Image
+        img: Imagen PIL o numpy array
+        usar_color: Si True, intenta procesar en color (mejor para algunas facturas)
     
     Returns:
-        PIL Image: Imagen preprocesada
+        str: Texto extraído
     """
-    try:
-        # Convertir a escala de grises si es necesario
-        if imagen.mode != 'L':
-            imagen = imagen.convert('L')
-        
-        # Aumentar contraste
-        enhancer = ImageEnhance.Contrast(imagen)
-        imagen = enhancer.enhance(2.0)
-        
-        # Aumentar nitidez
-        enhancer = ImageEnhance.Sharpness(imagen)
-        imagen = enhancer.enhance(2.0)
-        
-        # Aplicar filtro para reducir ruido
-        imagen = imagen.filter(ImageFilter.MedianFilter(size=3))
-        
-        # Redimensionar si es muy pequeña (mínimo 300 DPI equivalente)
-        width, height = imagen.size
-        if width < 1200 or height < 1200:
-            # Escalar manteniendo proporción
-            factor = max(1200 / width, 1200 / height)
-            new_width = int(width * factor)
-            new_height = int(height * factor)
-            imagen = imagen.resize((new_width, new_height), Image.Resampling.LANCZOS)
-        
-        return imagen
+    textos = []
     
-    except Exception as e:
-        print(f"Error en preprocesamiento: {str(e)}")
-        return imagen  # Retornar imagen original si hay error
-
-def procesar_imagen_ocr(archivo):
-    """
-    Procesa una imagen o PDF y extrae texto usando OCR con preprocesamiento
+    # Convertir PIL a numpy si es necesario
+    if isinstance(img, Image.Image) and CV2_AVAILABLE:
+        import numpy as np
+        img_cv = np.array(img)
+        if img_cv.ndim == 3:
+            img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGB2BGR)
+    elif CV2_AVAILABLE:
+        img_cv = img
+    else:
+        img_cv = None
     
-    Args:
-        archivo: Archivo subido (imagen JPG/PNG o PDF)
-    
-    Returns:
-        str: Texto extraído del OCR
-    """
-    try:
-        # Si es PDF, convertir a imagen
-        if archivo.name.lower().endswith('.pdf'):
-            # Guardar temporalmente el PDF
-            temp_path = os.path.join(settings.MEDIA_ROOT, 'temp', archivo.name)
-            os.makedirs(os.path.dirname(temp_path), exist_ok=True)
-            
-            archivo.seek(0)  # Volver al inicio
-            with open(temp_path, 'wb') as f:
-                for chunk in archivo.chunks():
-                    f.write(chunk)
-            
-            # Convertir PDF a imágenes con alta resolución
-            images = convert_from_path(temp_path, dpi=300)
-            
-            # Extraer texto de todas las páginas
-            texto_completo = []
-            for img in images:
-                # Preprocesar imagen
-                img_procesada = preprocesar_imagen(img)
-                
-                # Configurar OCR con mejor precisión para facturas
-                # PSM 6 = Asume un bloque uniforme de texto
-                # PSM 11 = Sparse text (mejor para tablas)
-                texto = pytesseract.image_to_string(
-                    img_procesada, 
-                    lang='spa', 
-                    config='--psm 11 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÁÉÍÓÚáéíóúÑñ.,$:/- '
-                )
-                texto_completo.append(texto)
-            
-            # Limpiar archivo temporal
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-            
-            return '\n'.join(texto_completo)
-        
-        # Si es imagen (JPG/PNG), procesar directamente
-        else:
-            archivo.seek(0)  # Volver al inicio del archivo
-            imagen = Image.open(archivo)
-            
-            # Preprocesar imagen para mejorar OCR
-            imagen_procesada = preprocesar_imagen(imagen)
-            
-            # Configurar OCR con mejor precisión para facturas
-            # PSM 11 funciona mejor para tablas y texto disperso
-            texto = pytesseract.image_to_string(
-                imagen_procesada, 
-                lang='spa', 
-                config='--psm 11 -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÁÉÍÓÚáéíóúÑñ.,$:/- '
-            )
-            
-            return texto
-    
-    except Exception as e:
-        print(f"Error en OCR: {str(e)}")
-        # Intentar sin preprocesamiento como fallback
+    # Estrategia 1: Procesar en color (si se solicita y es posible)
+    if usar_color and CV2_AVAILABLE and img_cv is not None:
         try:
-            archivo.seek(0)
-            imagen = Image.open(archivo)
-            texto = pytesseract.image_to_string(imagen, lang='spa', config='--psm 6')
-            return texto
-        except:
-            return ""
-
-def extraer_fecha(texto):
-    """Extrae fecha del texto de la factura"""
-    # Patrones comunes de fecha
-    patrones = [
-        r'(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})',  # DD/MM/YYYY o DD-MM-YYYY
-        r'(\d{2,4})[\/\-](\d{1,2})[\/\-](\d{1,2})',  # YYYY/MM/DD
-    ]
-    
-    for patron in patrones:
-        match = re.search(patron, texto)
-        if match:
-            try:
-                from datetime import datetime
-                fecha_str = match.group(0).replace('-', '/')
-                # Intentar parsear
-                for fmt in ['%d/%m/%Y', '%Y/%m/%d', '%d/%m/%y']:
-                    try:
-                        return datetime.strptime(fecha_str, fmt).date()
-                    except:
-                        continue
-            except:
-                continue
-    
-    return None
-
-def extraer_numero_factura(texto):
-    """Extrae número de factura del texto"""
-    # Buscar patrones como "Factura N° 12345" o "N°: 12345"
-    patrones = [
-        r'[Ff]actura\s*[Nn]°?\s*:?\s*(\d+)',
-        r'[Nn]°?\s*:?\s*(\d{4,})',
-        r'[Ff]actura\s*#?\s*:?\s*(\d+)',
-    ]
-    
-    for patron in patrones:
-        match = re.search(patron, texto)
-        if match:
-            return match.group(1)
-    
-    return None
-
-def extraer_total(texto):
-    """Extrae el total de la factura"""
-    # Buscar patrones como "Total: $12345" o "TOTAL 12345"
-    patrones = [
-        r'[Tt]otal\s*:?\s*\$?\s*(\d{1,3}(?:\.\d{3})*(?:,\d+)?)',
-        r'[Tt]otal\s*:?\s*(\d{1,3}(?:\.\d{3})*(?:,\d+)?)',
-    ]
-    
-    for patron in patrones:
-        match = re.search(patron, texto)
-        if match:
-            total_str = match.group(1).replace('.', '').replace(',', '')
-            try:
-                return int(total_str)
-            except:
-                continue
-    
-    return None
-
-def extraer_items_factura(texto, productos_existentes=None):
-    """
-    Extrae items de la factura chilena usando OCR y regex.
-    NO crea productos automáticamente, solo detecta items.
-    
-    Formato esperado de factura chilena:
-    - Código | Descripción | Cantidad | Precio Unit. | Subtotal
-    - O variaciones con números al inicio (código) seguido de texto y precios
-    
-    Args:
-        texto: Texto extraído de la factura por OCR
-        productos_existentes: QuerySet de productos existentes (opcional, para matching)
-    
-    Returns:
-        list: Lista de diccionarios con items detectados:
-            {
-                'nombre_producto': str,
-                'cantidad': int,
-                'precio_unitario': int,
-                'subtotal': int,
-                'producto': Producto o None,
-                'producto_coincidencia': bool,
-                'codigo': str (opcional)
-            }
-    """
-    items = []
-    lineas = texto.split('\n')
-    
-    # Crear diccionario de productos para búsqueda rápida (si se proporcionan)
-    productos_dict = {}
-    if productos_existentes:
-        for producto in productos_existentes:
-        nombre_limpio = producto.nombre.lower().strip()
-        productos_dict[nombre_limpio] = producto
-        # También agregar variaciones (palabras clave)
-        palabras = nombre_limpio.split()
-        for palabra in palabras:
-            if len(palabra) > 3:  # Solo palabras significativas
-                productos_dict[palabra] = producto
-    
-    # Patrones más flexibles para detectar items
-    # Buscar líneas que contengan números grandes (precios) y texto (nombres)
-    
-    for i, linea in enumerate(lineas):
-        linea = linea.strip()
-        if not linea or len(linea) < 5:
-            continue
-        
-        # Limpiar línea de caracteres especiales problemáticos
-        linea_limpia = re.sub(r'[^\w\s\.\,\$\-]', ' ', linea)
-        
-        # Buscar números grandes que podrían ser precios (más de 3 dígitos)
-        numeros_grandes = re.findall(r'\d{1,3}(?:\.\d{3})*(?:,\d+)?', linea_limpia)
-        
-        if len(numeros_grandes) >= 1:
-            # Intentar extraer información
-            partes = linea_limpia.split()
-            
-            # Buscar cantidad (número pequeño, generalmente al inicio o después del nombre)
-            cantidad = 1
-            cantidad_encontrada = False
-            
-            # Buscar números que podrían ser cantidades (1-1000)
-            for parte in partes:
-                if parte.isdigit() and 1 <= int(parte) <= 1000:
-                    cantidad = int(parte)
-                    cantidad_encontrada = True
-                    break
-            
-            # Extraer precio (último número grande o penúltimo)
-            precio = None
-            if numeros_grandes:
-                # Tomar el último número grande como precio
-                precio_str = numeros_grandes[-1].replace('.', '').replace(',', '')
+            # Procesar directamente en color (a veces funciona mejor)
+            for psm_mode in [11, 6]:
                 try:
-                    precio = int(precio_str)
+                    texto = pytesseract.image_to_string(
+                        img_cv,
+                        lang=OCR_LANG,
+                        config=f"--psm {psm_mode}"
+                    )
+                    if texto.strip():
+                        textos.append(texto)
+                except:
+                    continue
+        except:
+            pass
+    
+    # Estrategia 2: Preprocesamiento mejorado (gris con mejoras)
+    if CV2_AVAILABLE and img_cv is not None:
+        try:
+            # Convertir a gris
+            gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+            
+            # Aumentar contraste
+            try:
+                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+                gray = clahe.apply(gray)
+            except:
+                gray = cv2.equalizeHist(gray)
+            
+            # Reducir ruido suavemente
+            gray = cv2.medianBlur(gray, 3)
+            
+            # Probar diferentes métodos de binarización
+            estrategias = [
+                # Binarización adaptativa
+                lambda g: cv2.adaptiveThreshold(
+                    g, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+                ),
+                # Otsu threshold
+                lambda g: cv2.threshold(g, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1],
+                # Imagen original en gris (sin binarizar)
+                lambda g: g,
+            ]
+            
+            for estrategia in estrategias:
+                try:
+                    processed = estrategia(gray)
+                    
+                    for psm_mode in [11, 6, 4]:
+                        try:
+                            texto = pytesseract.image_to_string(
+                                processed,
+                                lang=OCR_LANG,
+                                config=f"--psm {psm_mode}"
+                            )
+                            if texto.strip() and len(texto.strip()) > 50:  # Solo textos significativos
+                                textos.append(texto)
+                        except:
+                            continue
+                except:
+                    continue
+        except Exception as e:
+            print(f"Error en preprocesamiento OpenCV: {str(e)}")
+    
+    # Estrategia 3: PIL (fallback)
+    if isinstance(img, Image.Image):
+        try:
+            # Probar con imagen original
+            for psm_mode in [11, 6]:
+                try:
+                    texto = pytesseract.image_to_string(
+                        img,
+                        lang=OCR_LANG,
+                        config=f"--psm {psm_mode}"
+                    )
+                    if texto.strip():
+                        textos.append(texto)
                 except:
                     pass
             
-            # Si no hay precio válido, saltar esta línea
-            if not precio or precio < 100:  # Precios muy bajos probablemente no son válidos
-                continue
+            # Probar con mejoras de contraste
+            from PIL import ImageEnhance
+            img_enhanced = ImageEnhance.Contrast(img).enhance(2.0)
+            img_enhanced = ImageEnhance.Sharpness(img_enhanced).enhance(2.0)
             
-            # Extraer nombre del producto (todo antes de los números grandes)
-            # Buscar donde empiezan los números
-            nombre_partes = []
-            for parte in partes:
-                # Si encontramos un número grande, paramos
-                if re.match(r'\d{1,3}(?:\.\d{3})*(?:,\d+)?', parte):
-                    break
-                # Si es un número pequeño y ya tenemos nombre, podría ser cantidad
-                if parte.isdigit() and len(nombre_partes) > 0:
-                    continue
-                nombre_partes.append(parte)
-            
-            nombre = ' '.join(nombre_partes).strip()
-            
-            # Limpiar nombre de palabras comunes que no son parte del producto
-            palabras_excluir = ['codigo', 'cod', 'descripcion', 'um', 'cantidad', 'precio', 'unit', 
-                               'descuento', 'valor', 'ptax', 'unidad', 'código', 'descripción']
-            nombre_palabras = nombre.split()
-            nombre_limpio = ' '.join([p for p in nombre_palabras if p.lower() not in palabras_excluir])
-            
-            if len(nombre_limpio) < 3:  # Nombre muy corto, probablemente no es válido
-                continue
-            
-            # Calcular subtotal
-            subtotal = precio * cantidad
-            
-            # Intentar encontrar producto coincidente
-            producto_coincidencia = None
-            nombre_lower = nombre_limpio.lower().strip()
-            
-            # Búsqueda exacta
-            if nombre_lower in productos_dict:
-                producto_coincidencia = productos_dict[nombre_lower]
-            else:
-                # Búsqueda parcial - buscar palabras clave del nombre en productos
-                palabras_nombre = nombre_lower.split()
-                mejor_coincidencia = None
-                mejor_score = 0
-                
-                for prod_nombre, producto in productos_dict.items():
-                    score = 0
-                    # Contar palabras que coinciden
-                    for palabra in palabras_nombre:
-                        if len(palabra) > 3 and palabra in prod_nombre:
-                            score += 1
-                        if prod_nombre in palabra:
-                            score += 2
-                    
-                    if score > mejor_score:
-                        mejor_score = score
-                        mejor_coincidencia = producto
-                
-                if mejor_score >= 1:  # Al menos una palabra coincide
-                    producto_coincidencia = mejor_coincidencia
-            
-            items.append({
-                'nombre_producto': nombre_limpio,
-                'cantidad': cantidad,
-                'precio_unitario': precio,
-                'subtotal': subtotal,
-                'producto': producto_coincidencia,
-                'producto_coincidencia': producto_coincidencia is not None
-            })
-    
-    # Si no se encontraron items con el método anterior, intentar método más simple
-    if len(items) == 0:
-        # Buscar líneas con formato: texto + número grande
-        for linea in lineas:
-            linea = linea.strip()
-            if len(linea) < 10:
-                continue
-            
-            # Buscar cualquier número grande (precio) - formato chileno con puntos
-            match_precio = re.search(r'(\d{1,3}(?:\.\d{3})*(?:,\d+)?)', linea)
-            if match_precio:
-                precio_str = match_precio.group(1).replace('.', '').replace(',', '')
+            for psm_mode in [11, 6]:
                 try:
-                    precio = int(precio_str)
-                    if precio >= 1000:  # Solo precios razonables
-                        # Todo antes del precio es el nombre
-                        nombre = linea[:match_precio.start()].strip()
-                        # Limpiar nombre
-                        nombre = re.sub(r'^\d+\s*', '', nombre)  # Quitar códigos al inicio
-                        nombre = nombre.strip()
-                        
-                        if len(nombre) > 3:
-                            # Buscar producto
-                            producto_coincidencia = None
-                            nombre_lower = nombre.lower()
-                            for prod_nombre, producto in productos_dict.items():
-                                if prod_nombre in nombre_lower or nombre_lower in prod_nombre:
-                                    producto_coincidencia = producto
-                                    break
-                            
-                            items.append({
-                                'nombre_producto': nombre,
-                                'cantidad': 1,
-                                'precio_unitario': precio,
-                                'subtotal': precio,
-                                'producto': producto_coincidencia,
-                                'producto_coincidencia': producto_coincidencia is not None
-                            })
+                    texto = pytesseract.image_to_string(
+                        img_enhanced,
+                        lang=OCR_LANG,
+                        config=f"--psm {psm_mode}"
+                    )
+                    if texto.strip():
+                        textos.append(texto)
                 except:
-                    continue
+                    pass
+        except:
+            pass
     
-    # Método adicional: buscar patrones de tabla (formato factura chilena)
-    # Formato típico: código descripción cantidad precio_unitario subtotal
-    if len(items) == 0:
-        # Buscar líneas que tengan múltiples números separados (formato tabla)
-        for i, linea in enumerate(lineas):
-            linea = linea.strip()
-            if len(linea) < 15:
+    # Retornar el mejor texto (más largo y con más palabras)
+    if textos:
+        # Filtrar textos muy cortos o con muchos caracteres raros
+        textos_validos = []
+        for t in textos:
+            # Contar caracteres alfanuméricos
+            alfanumericos = sum(1 for c in t if c.isalnum())
+            if alfanumericos > len(t) * 0.3:  # Al menos 30% alfanumérico
+                textos_validos.append(t)
+        
+        if textos_validos:
+            # Retornar el más largo y con más palabras
+            return max(textos_validos, key=lambda x: (len(x), len(x.split())))
+        return max(textos, key=len)
+    
+    return ""
+
+
+def extraer_texto_ocr(ruta_archivo):
+    """
+    Recibe la ruta de una imagen o PDF y devuelve el texto OCR.
+    Soporta: JPG, PNG, PDF
+    Optimizado para facturas chilenas con tablas.
+    """
+    # Verificar que el archivo existe
+    if not os.path.exists(ruta_archivo):
+        return ""
+    
+    try:
+        # Verificar si es PDF
+        if ruta_archivo.lower().endswith('.pdf'):
+            if not PDF2IMAGE_AVAILABLE:
+                return ""
+            
+            try:
+                # Convertir PDF a imágenes (alta resolución)
+                images = convert_from_path(ruta_archivo, dpi=300, first_page=1, last_page=1)
+                
+                if not images:
+                    return ""
+                
+                # Procesar la primera página (o todas si es necesario)
+                texto_completo = []
+                for img in images[:3]:  # Máximo 3 páginas
+                    texto = procesar_imagen_ocr(img, usar_color=False)
+                    if texto.strip():
+                        texto_completo.append(texto)
+                
+                return "\n".join(texto_completo)
+            except Exception as e:
+                print(f"Error procesando PDF: {str(e)}")
+                return ""
+        
+        # Es una imagen (JPG, PNG, etc.)
+        if CV2_AVAILABLE:
+            img = cv2.imread(ruta_archivo)
+            if img is None:
+                # Intentar con PIL si OpenCV falla
+                try:
+                    img = Image.open(ruta_archivo)
+                except:
+                    return ""
+            else:
+                # Convertir a PIL para compatibilidad
+                img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                img = Image.fromarray(img_rgb)
+        else:
+            img = Image.open(ruta_archivo)
+        
+        # Procesar imagen (probar con y sin color)
+        texto1 = procesar_imagen_ocr(img, usar_color=False)
+        texto2 = procesar_imagen_ocr(img, usar_color=True)
+        
+        # Retornar el mejor resultado
+        if len(texto2) > len(texto1) * 1.1:  # Si color es significativamente mejor
+            return texto2
+        return texto1 if texto1 else texto2
+            
+    except Exception as e:
+        print(f"Error en OCR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return ""
+
+
+def extraer_items_factura(texto):
+    """
+    Extrae items desde texto OCR de facturas chilenas.
+    Mejorado para detectar múltiples formatos de facturas electrónicas.
+    Ahora busca en TODO el texto, no solo en secciones específicas.
+    """
+    items = []
+    
+    if not texto or not texto.strip():
+        return items
+
+    lineas = texto.split("\n")
+    
+    # Buscar la sección de productos (después de encabezados)
+    en_seccion_productos = False
+    encontrado_tabla = False
+    skip_next = False  # Para saltar líneas de encabezado
+    
+    # Procesar TODAS las líneas, no solo las de la tabla
+    for i, linea in enumerate(lineas):
+        linea = linea.strip()
+        
+        # Detectar inicio de tabla de productos
+        if not encontrado_tabla:
+            # Buscar palabras clave que indican inicio de tabla
+            if re.search(r"(codigo|descripcion|precio|cantidad|grado|um|alcoh|item|producto)", linea, re.IGNORECASE):
+                encontrado_tabla = True
+                en_seccion_productos = True
+                skip_next = True  # Saltar la línea de encabezado
+                continue
+        
+        if skip_next:
+            skip_next = False
+            continue
+        
+        # Detectar fin de tabla (totales, subtotales, etc.)
+        if en_seccion_productos:
+            if re.search(r"(subtotal|total\s+factura|neto|iva\s+\d+|total\s*:)", linea, re.IGNORECASE):
+                if re.search(r"\d{1,3}(?:\.\d{3})+", linea):  # Tiene números grandes
+                    en_seccion_productos = False
+                    # NO salir, seguir procesando por si hay más items
+        
+        # Si encontramos tabla, procesar solo esa sección
+        # Si NO encontramos tabla, procesar TODO el texto
+        if encontrado_tabla and not en_seccion_productos:
+            # Ya pasamos la sección de productos, pero seguimos buscando
+            pass
+        
+        # Limpiar línea de caracteres problemáticos pero mantener estructura
+        linea_limpia = re.sub(r'[^\w\s\.\,\d\-\$]', ' ', linea)
+        linea_limpia = re.sub(r'\s+', ' ', linea_limpia).strip()
+        
+        if len(linea_limpia) < 8:  # Líneas muy cortas probablemente no son productos
                 continue
             
-            # Buscar múltiples números grandes separados (columnas de tabla)
-            numeros = re.findall(r'\d{1,3}(?:\.\d{3})*(?:,\d+)?', linea)
+        # Filtrar líneas que claramente NO son productos
+        # Filtrar líneas que empiezan con palabras de encabezado/cliente
+        if re.match(r"^(cliente|proveedor|rut|direccion|telefono|email|fecha|factura|boleta|razon\s+social)", linea_limpia, re.IGNORECASE):
+                    continue
+        
+        # Filtrar líneas que contienen estas palabras clave (excepto si tienen código de producto al inicio)
+        if re.search(r"(factura|boleta|rut|direccion|telefono|email|fecha|total|subtotal|iva|neto|proveedor|cliente)", linea_limpia, re.IGNORECASE):
+            # Si tiene estas palabras pero NO tiene precio grande Y NO empieza con código, probablemente no es producto
+            if not re.search(r"\d{4,}", linea_limpia) and not re.match(r"^\d{4,}", linea_limpia):
+                continue
             
-            if len(numeros) >= 2:  # Al menos cantidad y precio
-                # El último número suele ser el subtotal o precio unitario
-                # El penúltimo podría ser precio unitario
-                # Buscar cantidad (número pequeño, generalmente 1-100)
-                cantidad = 1
-                precio = None
+        try:
+            # MÉTODO 1: Líneas que comienzan con código de producto (4-7 dígitos)
+            match_codigo = re.match(r"^(\d{4,7})\s+(.+)", linea_limpia)
+            
+            if match_codigo:
+                codigo = match_codigo.group(1)
+                resto_linea = match_codigo.group(2)
                 
-                # Intentar identificar cantidad y precio
-                for num_str in numeros:
-                    num_limpio = num_str.replace('.', '').replace(',', '')
+                # Buscar precios con formato chileno: 19.000,00 o 19.000 o 19000
+                # Patrón más flexible
+                precios = re.findall(r"(\d{1,3}(?:\.\d{3})*(?:,\d{2})?|\d{4,})", resto_linea)
+                
+                if precios:
+                    # Filtrar y convertir precios
+                    precios_numericos = []
+                    for p in precios:
+                        try:
+                            # Limpiar y convertir precio
+                            precio_limpio = p.replace(".", "").replace(",", ".")
+                            precio_num = float(precio_limpio)
+                            # Precios razonables: entre 1.000 y 10.000.000
+                            if 1000 <= precio_num <= 10000000:
+                                precios_numericos.append(int(precio_num))
+                        except:
+                            continue
+                    
+                    if precios_numericos:
+                        # Tomar el precio más grande que no sea extremo (probablemente precio unitario)
+                        precios_ordenados = sorted(precios_numericos, reverse=True)
+                        # Filtrar precios extremos (probablemente totales)
+                        precio = precios_ordenados[0]
+                        if len(precios_ordenados) > 1 and precios_ordenados[0] > precios_ordenados[1] * 10:
+                            precio = precios_ordenados[1]  # Tomar el segundo si el primero es muy grande
+                        
+                        # Buscar cantidad (número pequeño, generalmente 1-100)
+                        # La cantidad generalmente está después del nombre y antes del precio
+                        cantidad = 1
+                        
+                        # Buscar números pequeños que podrían ser cantidad
+                        # Pero excluir números que son parte de códigos (más de 3 dígitos seguidos)
+                        numeros_pequenos = re.findall(r"\b([1-9]\d{0,2})\b", resto_linea)
+                        
+                        # Filtrar números que parecen ser parte de códigos o nombres
+                        cantidades_validas = []
+                        for num_str in numeros_pequenos:
+                            try:
+                                num = int(num_str)
+                                # Cantidades razonables: entre 1 y 100 (raro tener más de 100 unidades)
+                                if 1 <= num <= 100:
+                                    # Verificar que no esté dentro de un código más largo
+                                    idx = resto_linea.find(num_str)
+                                    if idx > 0:
+                                        # Verificar contexto: no debe estar rodeado de más dígitos
+                                        antes = resto_linea[max(0, idx-1):idx]
+                                        despues = resto_linea[idx+len(num_str):idx+len(num_str)+1]
+                                        if not (antes.isdigit() or despues.isdigit()):
+                                            cantidades_validas.append(num)
+                            except:
+                                pass
+                        
+                        if cantidades_validas:
+                            # Tomar la cantidad más pequeña (probablemente la correcta)
+                            cantidad = min(cantidades_validas)
+                        
+                        # Extraer nombre del producto (más inteligente)
+                        nombre = resto_linea
+                        
+                        # Quitar códigos al inicio si quedaron
+                        nombre = re.sub(r"^\d{4,7}\s*", "", nombre)
+                        
+                        # Quitar códigos alfanuméricos al inicio (ej: "a47065", "SI 245856")
+                        nombre = re.sub(r"^[A-Za-z]?\s*\d{4,7}\s+", "", nombre)
+                        nombre = re.sub(r"^[A-Z]{1,3}\s+\d{4,7}\s+", "", nombre)
+                        
+                        # Quitar grados alcohólicos (43,0, 12,0, etc.) - formato decimal con coma
+                        nombre = re.sub(r"\b\d{1,2}[,\.]\d\b", "", nombre)
+                        
+                        # Quitar precios (todos los números grandes)
+                        for p in precios:
+                            nombre = nombre.replace(p, " ")
+                        
+                        # Quitar cantidades detectadas
+                        if cantidad > 1:
+                            nombre = nombre.replace(str(cantidad), " ", 1)  # Solo la primera ocurrencia
+                        
+                        # Quitar unidades de medida comunes
+                        nombre = re.sub(r"\b(CJ|UN|KG|LT|PZ|UM|GL|ML|CL)\b", "", nombre, flags=re.IGNORECASE)
+                        
+                        # Quitar porcentajes (41,66, 43,29, etc.)
+                        nombre = re.sub(r"\b\d{1,2}[,\.]\d{1,2}\s*%", "", nombre)
+                        
+                        # Quitar números grandes que quedaron (probablemente códigos mezclados)
+                        nombre = re.sub(r"\b\d{3,}\b", "", nombre)
+                        
+                        # Quitar números pequeños sueltos al final (probablemente cantidades residuales)
+                        nombre = re.sub(r"\s+\d{1,2}\s*$", "", nombre)
+                        
+                        # Limpiar caracteres raros y espacios múltiples
+                        nombre = re.sub(r'[^\w\s]', ' ', nombre)  # Reemplazar caracteres raros con espacio
+                        nombre = re.sub(r'\s+', ' ', nombre).strip()
+                        nombre = re.sub(r'^[^\w]+|[^\w]+$', '', nombre)  # Quitar caracteres no alfanuméricos al inicio/fin
+                        
+                        # Limpiar palabras sueltas de una letra (errores de OCR)
+                        palabras = nombre.split()
+                        palabras_limpias = []
+                        for palabra in palabras:
+                            # Mantener palabras de 2+ letras, o palabras de 1 letra si son comunes (a, y, etc.)
+                            if len(palabra) >= 2 or palabra.lower() in ['a', 'y', 'o', 'e', 'i', 'u']:
+                                palabras_limpias.append(palabra)
+                        nombre = ' '.join(palabras_limpias)
+                        
+                        # Validar que el nombre tenga sentido
+                        if len(nombre) >= 3 and not nombre.isdigit():
+                            # Verificar que tenga al menos una letra
+                            if re.search(r'[a-zA-ZÁÉÍÓÚáéíóúÑñ]', nombre):
+                                # Filtrar nombres que son claramente información del cliente/proveedor
+                                if not re.search(r"^(cliente|proveedor|rut|direccion|telefono|email|fecha|andrea|alejandra|canto)", nombre, re.IGNORECASE):
+                                    items.append({
+                                        "nombre": nombre,
+                                        "cantidad": cantidad,
+                                        "precio": precio
+                                    })
+                                    continue
+            
+            # MÉTODO 2: Buscar líneas con precios grandes sin código al inicio
+            # (para facturas con formato diferente o cuando el código no se detectó)
+            precios = re.findall(r"(\d{1,3}(?:\.\d{3})*(?:,\d{2})?|\d{4,})", linea_limpia)
+            if precios and len(linea_limpia) > 15:
+                precios_numericos = []
+                for p in precios:
                     try:
-                        num_val = int(num_limpio)
-                        # Si es un número pequeño, probablemente es cantidad
-                        if 1 <= num_val <= 100:
-                            cantidad = num_val
-                        # Si es un número grande (>= 1000), probablemente es precio
-                        elif num_val >= 1000 and precio is None:
-                            precio = num_val
+                        precio_limpio = p.replace(".", "").replace(",", ".")
+                        precio_num = float(precio_limpio)
+                        if 1000 <= precio_num <= 10000000:
+                            precios_numericos.append(int(precio_num))
                     except:
                         continue
                 
-                if precio and precio >= 1000:
-                    # Extraer nombre (todo antes de los números)
-                    # Buscar donde empieza el primer número
-                    match_primero = re.search(r'\d', linea)
-                    if match_primero:
-                        nombre = linea[:match_primero.start()].strip()
-                        # Limpiar nombre
-                        nombre = re.sub(r'^\d+\s*', '', nombre)  # Quitar códigos
-                        nombre = re.sub(r'\s+', ' ', nombre)  # Normalizar espacios
-                        nombre = nombre.strip()
-                        
-                        # Excluir palabras comunes de encabezados
-                        palabras_excluir = ['codigo', 'cod', 'descripcion', 'um', 'cantidad', 
-                                           'precio', 'unit', 'descuento', 'valor', 'ptax', 
-                                           'unidad', 'código', 'descripción', 'alcoh']
-                        nombre_palabras = nombre.split()
-                        nombre_limpio = ' '.join([p for p in nombre_palabras 
-                                                 if p.lower() not in palabras_excluir])
-                        
-                        if len(nombre_limpio) >= 3:
-                            # Buscar producto
-                            producto_coincidencia = None
-                            nombre_lower = nombre_limpio.lower()
-                            for prod_nombre, producto in productos_dict.items():
-                                if prod_nombre in nombre_lower or nombre_lower in prod_nombre:
-                                    producto_coincidencia = producto
+                if precios_numericos:
+                    precio = max(precios_numericos)
+                    
+                    # Buscar cantidad
+                    cantidad = 1
+                    cantidad_match = re.search(r"\b([1-9]\d{0,2})\b", linea_limpia)
+                    if cantidad_match:
+                        try:
+                            cant = int(cantidad_match.group(1))
+                            if 1 <= cant <= 1000:
+                                cantidad = cant
+                        except:
+                            pass
+                    
+                    # Extraer nombre (todo antes del primer precio grande)
+                    nombre = linea_limpia
+                    # Encontrar posición del primer precio grande
+                    for p in precios:
+                        try:
+                            precio_limpio = p.replace(".", "").replace(",", ".")
+                            precio_num = float(precio_limpio)
+                            if 1000 <= precio_num <= 10000000:
+                                idx = nombre.find(p)
+                                if idx > 5:  # Asegurar que hay texto antes
+                                    nombre = nombre[:idx].strip()
                                     break
-                            
+                        except:
+                            continue
+                    
+                    # Limpiar nombre
+                    nombre = re.sub(r"^\d{4,7}\s*", "", nombre)
+                    nombre = re.sub(r'\s+', ' ', nombre).strip()
+                    
+                    # Validar nombre
+                    if len(nombre) >= 3 and not nombre.isdigit():
+                        if re.search(r'[a-zA-ZÁÉÍÓÚáéíóúÑñ]', nombre):
                             items.append({
-                                'nombre_producto': nombre_limpio,
-                                'cantidad': cantidad,
-                                'precio_unitario': precio,
-                                'subtotal': precio * cantidad,
-                                'producto': producto_coincidencia,
-                                'producto_coincidencia': producto_coincidencia is not None
+                                "nombre": nombre,
+                                "cantidad": cantidad,
+                                "precio": precio
                             })
-    
-    return items
 
+        except Exception as e:
+            # Continuar con la siguiente línea si hay error
+            continue
+
+    return items

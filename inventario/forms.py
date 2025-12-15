@@ -4,7 +4,7 @@ from .models import Producto, Categoria
 class ProductoForm(forms.ModelForm):
     class Meta:
         model = Producto
-        fields = ['nombre', 'sku', 'descripcion', 'categoria', 'precio', 'stock', 'stock_minimo', 'imagen', 'activo']
+        fields = ['nombre', 'sku', 'descripcion', 'categoria', 'precio', 'precio_promo', 'stock', 'stock_minimo', 'imagen', 'activo']
         widgets = {
             'nombre': forms.TextInput(attrs={
                 'class': 'form-control form-control-lg',
@@ -24,7 +24,13 @@ class ProductoForm(forms.ModelForm):
             }),
             'precio': forms.NumberInput(attrs={
                 'class': 'form-control form-control-lg',
-                'placeholder': 'Precio',
+                'placeholder': 'Precio unidad',
+                'min': '0',
+                'step': '1'
+            }),
+            'precio_promo': forms.NumberInput(attrs={
+                'class': 'form-control form-control-lg',
+                'placeholder': 'Precio promocional (opcional)',
                 'min': '0',
                 'step': '1'
             }),
@@ -53,7 +59,8 @@ class ProductoForm(forms.ModelForm):
             'sku': 'SKU/Código de Barras',
             'descripcion': 'Descripción',
             'categoria': 'Categoría',
-            'precio': 'Precio',
+            'precio': 'Precio Unidad',
+            'precio_promo': 'Precio Promo',
             'stock': 'Stock',
             'stock_minimo': 'Stock Mínimo',
             'imagen': 'Imagen del Producto',
@@ -66,6 +73,7 @@ class ProductoForm(forms.ModelForm):
         self.fields['sku'].required = False
         self.fields['descripcion'].required = False
         self.fields['categoria'].required = False
+        self.fields['precio_promo'].required = False
         self.fields['categoria'].queryset = Categoria.objects.all().order_by('nombre')
 
 class CategoriaForm(forms.ModelForm):

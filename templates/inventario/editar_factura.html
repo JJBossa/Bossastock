@@ -85,12 +85,12 @@
                 <table class="table table-bordered">
                     <thead class="table-light">
                         <tr>
-                            <th>Producto</th>
+                            <th>Producto Existente</th>
                             <th>Nombre (Texto OCR)</th>
                             <th>Cantidad</th>
                             <th>Precio Unit.</th>
                             <th>Subtotal</th>
-                            <th>Coincidencia</th>
+                            <th>Acción</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -106,6 +106,14 @@
                                     </option>
                                     {% endfor %}
                                 </select>
+                                {% if not item.producto %}
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" name="crear_producto_{{ item.id }}" id="crear_{{ item.id }}">
+                                    <label class="form-check-label small" for="crear_{{ item.id }}">
+                                        <i class="bi bi-plus-circle"></i> Crear producto nuevo
+                                    </label>
+                                </div>
+                                {% endif %}
                             </td>
                             <td>
                                 <input type="text" name="nombre_producto_{{ item.id }}" value="{{ item.nombre_producto }}" class="form-control form-control-sm">
@@ -120,8 +128,10 @@
                             <td>
                                 {% if item.producto_coincidencia %}
                                 <span class="badge bg-success"><i class="bi bi-check-circle"></i> Coincide</span>
+                                {% elif item.producto %}
+                                <span class="badge bg-info"><i class="bi bi-info-circle"></i> Asignado</span>
                                 {% else %}
-                                <span class="badge bg-warning"><i class="bi bi-exclamation-triangle"></i> Revisar</span>
+                                <span class="badge bg-warning"><i class="bi bi-exclamation-triangle"></i> Sin producto</span>
                                 {% endif %}
                                 {% if item.stock_actualizado %}
                                 <br><small class="text-success"><i class="bi bi-check"></i> Stock actualizado</small>
@@ -158,15 +168,20 @@
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-4">
-                    <input type="text" name="nombre_nuevo" class="form-control" placeholder="Nombre del producto">
+                    <input type="text" name="nombre_nuevo" class="form-control" placeholder="Nombre del producto" id="nombre_nuevo">
                 </div>
                 <div class="col-md-2">
-                    <select name="producto_nuevo" class="form-select">
+                    <select name="producto_nuevo" class="form-select" id="producto_nuevo">
                         <option value="">-- Producto --</option>
                         {% for producto in productos %}
                         <option value="{{ producto.id }}">{{ producto.nombre }}</option>
                         {% endfor %}
                     </select>
+                </div>
+                <div class="col-md-1">
+                    <button type="button" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#scannerModal" title="Escanear código de barras">
+                        <i class="bi bi-upc-scan"></i>
+                    </button>
                 </div>
                 <div class="col-md-2">
                     <input type="number" name="cantidad_nuevo" class="form-control" placeholder="Cantidad" min="1" value="1">
@@ -207,5 +222,189 @@
     </div>
     {% endif %}
 </form>
+
+<!-- Modal Escáner de Código de Barras -->
+<div class="modal fade" id="scannerModal" tabindex="-1" aria-labelledby="scannerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="scannerModalLabel">
+                    <i class="bi bi-upc-scan"></i> Escanear Código de Barras
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> 
+                    Permite el acceso a la cámara cuando se te solicite. Apunta el código de barras hacia la cámara.
+                </div>
+                <div id="scanner-container" class="text-center mb-3">
+                    <video id="scanner-video" width="100%" style="max-width: 640px; border: 2px solid #ddd; border-radius: 8px;" autoplay playsinline></video>
+                    <canvas id="scanner-canvas" style="display: none;"></canvas>
+                </div>
+                <div id="scanner-status" class="text-center">
+                    <p class="text-muted">Iniciando cámara...</p>
+                </div>
+                <div id="scanner-result" class="alert" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="cerrar-scanner">Cerrar</button>
+                <button type="button" class="btn btn-primary" id="iniciar-scanner">Iniciar Escáner</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ZXing Library para escanear códigos de barras -->
+<script src="https://unpkg.com/@zxing/library@latest"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const scannerModal = document.getElementById('scannerModal');
+    const video = document.getElementById('scanner-video');
+    const statusDiv = document.getElementById('scanner-status');
+    const resultDiv = document.getElementById('scanner-result');
+    const iniciarBtn = document.getElementById('iniciar-scanner');
+    const nombreInput = document.getElementById('nombre_nuevo');
+    const productoSelect = document.getElementById('producto_nuevo');
+    
+    let codeReader = null;
+    let scanning = false;
+    
+    // Inicializar ZXing
+    const { BrowserMultiFormatReader } = ZXing;
+    codeReader = new BrowserMultiFormatReader();
+    
+    iniciarBtn.addEventListener('click', async function() {
+        if (scanning) return;
+        
+        try {
+            iniciarBtn.disabled = true;
+            iniciarBtn.textContent = 'Escaneando...';
+            statusDiv.innerHTML = '<p class="text-primary"><i class="bi bi-camera-video"></i> Escaneando...</p>';
+            
+            // Obtener lista de cámaras
+            const videoInputDevices = await codeReader.listVideoInputDevices();
+            
+            // Usar la cámara trasera si está disponible (mejor para códigos de barras)
+            let selectedDeviceId = null;
+            for (let device of videoInputDevices) {
+                if (device.label.toLowerCase().includes('back') || 
+                    device.label.toLowerCase().includes('rear') ||
+                    device.label.toLowerCase().includes('trasera')) {
+                    selectedDeviceId = device.deviceId;
+                    break;
+                }
+            }
+            // Si no hay cámara trasera, usar la primera disponible
+            if (!selectedDeviceId && videoInputDevices.length > 0) {
+                selectedDeviceId = videoInputDevices[0].deviceId;
+            }
+            
+            // Iniciar escaneo
+            scanning = true;
+            codeReader.decodeFromVideoDevice(selectedDeviceId, video, (result, err) => {
+                if (result) {
+                    const codigo = result.getText();
+                    console.log('Código escaneado:', codigo);
+                    
+                    // Detener escaneo
+                    codeReader.reset();
+                    scanning = false;
+                    
+                    // Buscar producto
+                    buscarProducto(codigo);
+                }
+                if (err && !(err instanceof ZXing.NotFoundException)) {
+                    console.error('Error escaneando:', err);
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error iniciando escáner:', error);
+            statusDiv.innerHTML = '<p class="text-danger"><i class="bi bi-exclamation-triangle"></i> Error: ' + error.message + '</p>';
+            iniciarBtn.disabled = false;
+            iniciarBtn.textContent = 'Iniciar Escáner';
+            scanning = false;
+        }
+    });
+    
+    // Cerrar modal y detener cámara
+    scannerModal.addEventListener('hidden.bs.modal', function() {
+        if (codeReader) {
+            codeReader.reset();
+        }
+        scanning = false;
+        iniciarBtn.disabled = false;
+        iniciarBtn.textContent = 'Iniciar Escáner';
+        statusDiv.innerHTML = '<p class="text-muted">Iniciando cámara...</p>';
+        resultDiv.style.display = 'none';
+    });
+    
+    // Función para buscar producto por código
+    function buscarProducto(codigo) {
+        statusDiv.innerHTML = '<p class="text-info"><i class="bi bi-search"></i> Buscando producto...</p>';
+        
+        const formData = new FormData();
+        formData.append('codigo', codigo);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        
+        fetch('{% url "buscar_codigo_barras" %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.encontrado) {
+                // Producto encontrado
+                resultDiv.className = 'alert alert-success';
+                resultDiv.innerHTML = `
+                    <h6><i class="bi bi-check-circle"></i> Producto encontrado:</h6>
+                    <p><strong>${data.producto.nombre}</strong></p>
+                    <p>Precio: $${data.producto.precio.toLocaleString('es-CL')}</p>
+                    <p>Stock: ${data.producto.stock}</p>
+                    <button class="btn btn-sm btn-success" onclick="usarProducto(${data.producto.id}, '${data.producto.nombre.replace(/'/g, "\\'")}')">
+                        <i class="bi bi-check"></i> Usar este producto
+                    </button>
+                `;
+                resultDiv.style.display = 'block';
+                
+                // Seleccionar producto en el select
+                productoSelect.value = data.producto.id;
+                nombreInput.value = data.producto.nombre;
+                
+            } else {
+                // Producto no encontrado
+                resultDiv.className = 'alert alert-warning';
+                resultDiv.innerHTML = `
+                    <h6><i class="bi bi-exclamation-triangle"></i> Producto no encontrado</h6>
+                    <p>El código <strong>${codigo}</strong> no está registrado en el sistema.</p>
+                    <p>Puedes agregar el nombre manualmente.</p>
+                `;
+                resultDiv.style.display = 'block';
+                
+                // Poner el código en el nombre como sugerencia
+                nombreInput.value = `Producto ${codigo}`;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            resultDiv.className = 'alert alert-danger';
+            resultDiv.innerHTML = '<p><i class="bi bi-x-circle"></i> Error al buscar producto</p>';
+            resultDiv.style.display = 'block';
+        });
+    }
+    
+    // Función global para usar producto
+    window.usarProducto = function(productoId, nombre) {
+        productoSelect.value = productoId;
+        nombreInput.value = nombre;
+        
+        // Cerrar modal
+        const modal = bootstrap.Modal.getInstance(scannerModal);
+        modal.hide();
+    };
+});
+</script>
 {% endblock %}
 

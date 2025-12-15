@@ -47,9 +47,15 @@
                         </td>
                     </tr>
                     <tr>
-                        <th>Precio:</th>
+                        <th>Precio Unidad:</th>
                         <td><strong class="text-primary precio-destacado">${{ producto.precio|floatformat:0 }}</strong></td>
                     </tr>
+                    {% if producto.precio_promo %}
+                    <tr>
+                        <th>Precio Promo:</th>
+                        <td><strong class="text-success precio-destacado">${{ producto.precio_promo|floatformat:0 }}</strong></td>
+                    </tr>
+                    {% endif %}
                     <tr>
                         <th>Stock:</th>
                         <td>
