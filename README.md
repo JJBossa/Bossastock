@@ -132,31 +132,6 @@ Puedes modificar los productos desde:
 - El panel de administración de Django (`/admin/`)
 - El comando `importar_productos.py` para agregar más productos
 
-## Despliegue a Producción
-
-El proyecto está listo para desplegarse en producción. Se han preparado configuraciones para:
-
-### 🚀 Render (Recomendado)
-- **Guía completa:** Ver `DEPLOY_RENDER.md`
-- **Resumen rápido:** Ver `DEPLOY_RESUMEN.md`
-- Despliegue automático desde GitHub
-- Configuración lista en `render.yaml`
-
-### 🐍 PythonAnywhere
-- **Guía completa:** Ver `DEPLOY_PYTHONANYWHERE.md`
-- Ideal para proyectos Django
-- Configuración manual pero sencilla
-
-### ⚡ Inicio Rápido (Render)
-1. Sube tu código a GitHub
-2. Crea cuenta en [render.com](https://render.com)
-3. Conecta tu repositorio
-4. Render detectará automáticamente la configuración
-5. Configura las variables de entorno (SECRET_KEY, DEBUG, ALLOWED_HOSTS)
-6. ¡Listo! Tu app estará en producción
-
-**Nota:** Recuerda ejecutar las migraciones y crear el superusuario después del despliegue.
-
 ## Tecnologías Utilizadas
 
 - Django 5.2.8
@@ -166,6 +141,4 @@ El proyecto está listo para desplegarse en producción. Se han preparado config
 - Tesseract OCR (procesamiento de facturas)
 - ReportLab (exportar PDF)
 - OpenPyXL (exportar Excel)
-- Gunicorn (servidor WSGI para producción)
-- WhiteNoise (servir archivos estáticos)
 

@@ -1,20 +1,25 @@
 services:
   - type: web
     name: control-stock
-    runtime: python
-    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
-    startCommand: gunicorn control_stock.wsgi:application
+    env: python
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn control_stock.wsgi:application"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
-      - key: DJANGO_SETTINGS_MODULE
-        value: control_stock.settings
       - key: SECRET_KEY
         generateValue: true
       - key: DEBUG
         value: False
+      # IMPORTANTE: Actualiza ALLOWED_HOSTS con tu URL real de Render
       - key: ALLOWED_HOSTS
-        sync: false
+        value: control-stock.onrender.com
     healthCheckPath: /
+    # Nota: Necesitarás conectar manualmente la base de datos como dependencia
+    # en el dashboard de Render, o usar la URL de la base de datos en DATABASE_URL
+    
+databases:
+  - name: control-stock-db
     plan: free
 
