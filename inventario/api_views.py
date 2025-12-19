@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q, F
 from django_filters.rest_framework import DjangoFilterBackend
+from typing import Optional
 
 from .models import (
     Producto, Categoria, Venta, ItemVenta,
@@ -20,6 +21,7 @@ from .serializers import (
     NotificacionStockSerializer, ProveedorSerializer
 )
 from .utils import es_admin_bossa, normalizar_texto
+from .permissions import IsAdminOrReadOnly, IsOwnerOrAdmin, IsAdminBossa
 
 
 class ProductoViewSet(viewsets.ModelViewSet):
@@ -40,7 +42,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
     - ?activo=true - Solo productos activos
     """
     queryset = Producto.objects.all().select_related('categoria')
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminOrReadOnly]  # Usar permiso personalizado
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['categoria', 'activo']
     search_fields = ['nombre', 'sku', 'descripcion']
@@ -69,18 +71,12 @@ class ProductoViewSet(viewsets.ModelViewSet):
         
         return queryset
     
-    def get_permissions(self):
-        """Solo bossa puede crear/editar/eliminar"""
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            # Verificar permisos personalizados
-            if not es_admin_bossa(self.request.user):
-                from rest_framework.exceptions import PermissionDenied
-                raise PermissionDenied("Solo el administrador puede realizar esta acción")
-        return super().get_permissions()
-    
-    @action(detail=True, methods=['post'])
-    def actualizar_stock(self, request, pk=None):
-        """Endpoint para actualizar stock de un producto"""
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminBossa])
+    def actualizar_stock(self, request, pk: Optional[int] = None) -> Response:
+        """
+        Endpoint para actualizar stock de un producto.
+        Solo administradores pueden usar este endpoint.
+        """
         producto = self.get_object()
         cantidad = request.data.get('cantidad')
         tipo = request.data.get('tipo', 'ajuste')  # entrada, salida, ajuste
@@ -121,19 +117,11 @@ class CategoriaViewSet(viewsets.ModelViewSet):
     """ViewSet para gestionar categorías"""
     queryset = Categoria.objects.all()
     serializer_class = CategoriaSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminOrReadOnly]  # Usar permiso personalizado
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['nombre', 'descripcion']
     ordering_fields = ['nombre', 'fecha_creacion']
     ordering = ['nombre']
-    
-    def get_permissions(self):
-        """Solo bossa puede crear/editar/eliminar"""
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            if not es_admin_bossa(self.request.user):
-                from rest_framework.exceptions import PermissionDenied
-                raise PermissionDenied("Solo el administrador puede realizar esta acción")
-        return super().get_permissions()
 
 
 class VentaViewSet(viewsets.ReadOnlyModelViewSet):
@@ -158,6 +146,10 @@ class VentaViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(usuario=self.request.user)
         
         return queryset
+    
+    def get_permissions(self):
+        """Usar permiso personalizado para objetos"""
+        return [IsAuthenticated(), IsOwnerOrAdmin()]
 
 
 class CotizacionViewSet(viewsets.ModelViewSet):
@@ -179,6 +171,12 @@ class CotizacionViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(usuario=self.request.user)
         
         return queryset
+    
+    def get_permissions(self):
+        """Permisos: todos pueden crear, solo owner/admin puede editar/eliminar"""
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsOwnerOrAdmin()]
+        return [IsAuthenticated()]
     
     def perform_create(self, serializer):
         """Asignar usuario actual al crear cotización"""
@@ -207,7 +205,7 @@ class NotificacionStockViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ['-fecha']
     
     @action(detail=True, methods=['post'])
-    def marcar_vista(self, request, pk=None):
+    def marcar_vista(self, request, pk: Optional[int] = None) -> Response:
         """Marcar notificación como vista"""
         notificacion = self.get_object()
         notificacion.vista = True
@@ -219,17 +217,9 @@ class ProveedorViewSet(viewsets.ModelViewSet):
     """ViewSet para gestionar proveedores"""
     queryset = Proveedor.objects.all()
     serializer_class = ProveedorSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminOrReadOnly]  # Usar permiso personalizado
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['nombre', 'rut', 'email']
     ordering_fields = ['nombre', 'fecha_creacion']
     ordering = ['nombre']
-    
-    def get_permissions(self):
-        """Solo bossa puede crear/editar/eliminar"""
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            if not es_admin_bossa(self.request.user):
-                from rest_framework.exceptions import PermissionDenied
-                raise PermissionDenied("Solo el administrador puede realizar esta acción")
-        return super().get_permissions()
 

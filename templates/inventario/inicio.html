@@ -146,6 +146,26 @@
                         </a>
                     </li>
                     <li class="mb-2">
+                        <a href="{% url 'historial_precios_general' %}" class="text-decoration-none">
+                            <i class="bi bi-graph-up-arrow text-info"></i> Historial de Precios
+                        </a>
+                    </li>
+                    <li class="mb-2">
+                        <a href="{% url 'listar_ajustes' %}" class="text-decoration-none">
+                            <i class="bi bi-sliders text-warning"></i> Ajustes de Inventario
+                        </a>
+                    </li>
+                    <li class="mb-2">
+                        <a href="{% url 'listar_devoluciones' %}" class="text-decoration-none">
+                            <i class="bi bi-arrow-counterclockwise text-danger"></i> Devoluciones
+                        </a>
+                    </li>
+                    <li class="mb-2">
+                        <a href="{% url 'listar_reportes_programados' %}" class="text-decoration-none">
+                            <i class="bi bi-calendar-check text-info"></i> Reportes Programados
+                        </a>
+                    </li>
+                    <li class="mb-2">
                         <a href="{% url 'listar_usuarios' %}" class="text-decoration-none">
                             <i class="bi bi-people text-warning"></i> Usuarios
                         </a>
@@ -203,7 +223,7 @@
         </div>
         <div class="col-md-3">
             <h3><i class="bi bi-search"></i></h3>
-            <h4>{% if query or categoria_id or precio_min or precio_max or stock_bajo or con_imagen %}{{ productos.paginator.count }}{% else %}{{ total_productos }}{% endif %}</h4>
+            <h4>{% if query or categoria_id or precio_min or precio_max or stock_bajo or con_imagen %}{{ total_resultados }}{% else %}{{ total_productos }}{% endif %}</h4>
             <p class="mb-0">{% if query or categoria_id or precio_min or precio_max or stock_bajo or con_imagen %}Resultados{% else %}Mostrando{% endif %}</p>
         </div>
         <div class="col-md-3">
@@ -213,8 +233,8 @@
         </div>
         <div class="col-md-3">
             <h3><i class="bi bi-list-ul"></i></h3>
-            <h4>{{ productos.paginator.num_pages }}</h4>
-            <p class="mb-0">Página{{ productos.paginator.num_pages|pluralize }}</p>
+            <h4>{{ num_pages }}</h4>
+            <p class="mb-0">Página{{ num_pages|pluralize }}</p>
         </div>
     </div>
 </div>
@@ -249,10 +269,15 @@
                 <option value="1" {% if stock_bajo == "1" %}selected{% endif %}>Solo stock bajo</option>
             </select>
         </div>
-        <div class="col-md-2">
+        <div class="col-md-1">
             <button type="submit" class="btn btn-primary btn-lg w-100">
                 <i class="bi bi-search"></i> Buscar
             </button>
+        </div>
+        <div class="col-md-1">
+            <a href="{% url 'inicio' %}" class="btn btn-outline-secondary btn-lg w-100" title="Limpiar filtros y ver todos los productos">
+                <i class="bi bi-x-circle"></i> Limpiar
+            </a>
         </div>
     </form>
 </div>
@@ -287,10 +312,18 @@
                         <option value="0" {% if con_imagen == "0" %}selected{% endif %}>Solo sin imagen</option>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label">&nbsp;</label>
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary">Aplicar Filtros</button>
+                    </div>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-grid">
+                        <a href="{% url 'inicio' %}" class="btn btn-outline-secondary" title="Limpiar todos los filtros">
+                            <i class="bi bi-x-circle"></i> Limpiar
+                        </a>
                     </div>
                 </div>
             </form>
@@ -369,9 +402,31 @@
                         </div>
                         <div class="text-end">
                             <small class="text-muted d-block">Stock:</small>
+                            {% if es_admin %}
+                            <div class="d-flex align-items-center justify-content-end gap-1">
+                                <button class="btn btn-sm btn-outline-danger p-1" 
+                                        style="width: 28px; height: 28px; line-height: 1;"
+                                        onclick="event.stopPropagation(); actualizarStock({{ producto.id }}, 'restar', 1);"
+                                        title="Restar 1 unidad">
+                                    <i class="bi bi-dash"></i>
+                                </button>
+                                <strong class="{% if producto.stock <= producto.stock_minimo %}text-warning{% elif producto.stock == 0 %}text-danger{% else %}text-success{% endif %}" 
+                                        id="stock-{{ producto.id }}" 
+                                        style="min-width: 40px; text-align: center;">
+                                    {{ producto.stock }}
+                                </strong>
+                                <button class="btn btn-sm btn-outline-success p-1" 
+                                        style="width: 28px; height: 28px; line-height: 1;"
+                                        onclick="event.stopPropagation(); actualizarStock({{ producto.id }}, 'sumar', 1);"
+                                        title="Sumar 1 unidad">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                            </div>
+                            {% else %}
                             <strong class="{% if producto.stock <= producto.stock_minimo %}text-warning{% elif producto.stock == 0 %}text-danger{% else %}text-success{% endif %}">
                                 {{ producto.stock }}
                             </strong>
+                            {% endif %}
                         </div>
                     </div>
                     
@@ -414,7 +469,7 @@
         </li>
         {% endif %}
         
-        {% for num in productos.paginator.page_range %}
+        {% for num in page_range %}
             {% if productos.number == num %}
             <li class="page-item active">
                 <span class="page-link">{{ num }}</span>
@@ -446,6 +501,106 @@
 {% endif %}
 
 <script>
+// Función para actualizar stock rápidamente con botones +/-
+function actualizarStock(productoId, accion, cantidad) {
+    const stockElement = document.getElementById('stock-' + productoId);
+    const btnSumar = event.target.closest('.btn-outline-success');
+    const btnRestar = event.target.closest('.btn-outline-danger');
+    
+    // Deshabilitar botones temporalmente
+    if (btnSumar) btnSumar.disabled = true;
+    if (btnRestar) btnRestar.disabled = true;
+    
+    // Mostrar indicador de carga
+    const stockOriginal = stockElement.textContent.trim();
+    stockElement.innerHTML = '<i class="bi bi-arrow-repeat spin"></i>';
+    
+    // Obtener CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+    
+    fetch(`/producto/${productoId}/actualizar-stock/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrftoken
+        },
+        body: `accion=${accion}&cantidad=${cantidad}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+            stockElement.textContent = stockOriginal;
+        } else {
+            // Actualizar stock en la interfaz
+            stockElement.textContent = data.nuevo_stock;
+            
+            // Actualizar clases de color según el stock
+            stockElement.className = '';
+            if (data.nuevo_stock <= data.stock_minimo && data.nuevo_stock > 0) {
+                stockElement.classList.add('text-warning');
+            } else if (data.nuevo_stock == 0) {
+                stockElement.classList.add('text-danger');
+            } else {
+                stockElement.classList.add('text-success');
+            }
+            
+            // Actualizar badge de estado si existe
+            const card = stockElement.closest('.producto-card-inner');
+            if (card) {
+                card.className = card.className.replace(/border-\w+/g, '');
+                if (data.nuevo_stock <= data.stock_minimo && data.nuevo_stock > 0) {
+                    card.classList.add('border-warning');
+                } else if (data.nuevo_stock == 0) {
+                    card.classList.add('border-danger');
+                } else {
+                    card.classList.add('border-success');
+                }
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al actualizar el stock. Por favor, recarga la página.');
+        stockElement.textContent = stockOriginal;
+    })
+    .finally(() => {
+        // Rehabilitar botones
+        if (btnSumar) btnSumar.disabled = false;
+        if (btnRestar) btnRestar.disabled = false;
+    });
+}
+
+// Agregar estilo para spinner
+if (!document.getElementById('stock-spinner-style')) {
+    const style = document.createElement('style');
+    style.id = 'stock-spinner-style';
+    style.textContent = `
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
 // Atajo de teclado para búsqueda rápida
 document.addEventListener('keydown', function(e) {
     // F para buscar (solo si no está escribiendo en un input)

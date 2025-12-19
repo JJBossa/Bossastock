@@ -26,12 +26,31 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-_mu8+q+qb_!n$24+1)j4qg-1tom$(f2j13zm8_5uy&bg#za=%#')
-
 # SECURITY WARNING: don't run with debug turned on in production!
 # Para uso local, DEBUG está activo. En producción se configura con variable de entorno.
+# Definir DEBUG primero porque se usa en la validación de SECRET_KEY
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+
+# SECURITY WARNING: keep the secret key used in production secret!
+# En producción, SECRET_KEY DEBE estar configurada como variable de entorno
+# En desarrollo local, se permite un fallback solo si DEBUG=True
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    if DEBUG:
+        # Solo en desarrollo: usar una clave por defecto (NO SEGURO para producción)
+        SECRET_KEY = 'django-insecure-dev-only-_mu8+q+qb_!n$24+1)j4qg-1tom$(f2j13zm8_5uy&bg#za=%#'
+        import warnings
+        warnings.warn(
+            "SECRET_KEY no configurada. Usando clave de desarrollo insegura. "
+            "Configura SECRET_KEY como variable de entorno en producción.",
+            UserWarning
+        )
+    else:
+        # En producción, fallar si no hay SECRET_KEY
+        raise ValueError(
+            "SECRET_KEY no configurada. "
+            "Configura la variable de entorno SECRET_KEY antes de ejecutar en producción."
+        )
 
 # ALLOWED_HOSTS para uso local: localhost, IP local, y red local
 # Permite acceso desde el mismo PC y otros dispositivos en la red local
@@ -52,6 +71,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'django_filters',
+    'drf_spectacular',  # Para documentación Swagger/OpenAPI
     # Local
     'inventario',
 ]
@@ -59,6 +79,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',  # Para multi-idioma
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -82,9 +103,12 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.i18n',  # Para LANGUAGE_CODE en templates
+                'inventario.context_processors.translations',  # Para traducciones personalizadas
             ],
         },
     },
@@ -93,13 +117,17 @@ TEMPLATES = [
 WSGI_APPLICATION = 'control_stock.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+# ============================================================================
+# CONFIGURACIÓN DE BASE DE DATOS
+# ============================================================================
+# Para DESARROLLO LOCAL: SQLite (rápido, sin configuración, archivo local)
+# Para PRODUCCIÓN: PostgreSQL (mejor rendimiento, escalabilidad)
+# ============================================================================
 
-# Configuración para Render: usa PostgreSQL si DATABASE_URL está disponible, sino SQLite para desarrollo local
 DATABASE_URL = os.environ.get('DATABASE_URL')
+
 if DATABASE_URL and dj_database_url:
-    # En producción (Render) con PostgreSQL
+    # PRODUCCIÓN: Usar PostgreSQL si DATABASE_URL está configurada
     DATABASES = {
         'default': dj_database_url.config(
             default=DATABASE_URL,
@@ -108,11 +136,13 @@ if DATABASE_URL and dj_database_url:
         )
     }
 else:
-    # Desarrollo local con SQLite (o si dj_database_url no está instalado)
+    # DESARROLLO LOCAL: SQLite optimizado para uso local
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
+            # SQLite ya está optimizado por defecto para desarrollo local
+            # No necesita configuración adicional
         }
     }
 
@@ -139,13 +169,33 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'es-es'
+LANGUAGE_CODE = 'es'  # Cambiado de 'es-es' a 'es' para coincidir con LANGUAGES
 
 TIME_ZONE = 'America/Santiago'
 
 USE_I18N = True
-
+USE_L10N = True
 USE_TZ = True
+
+# Idiomas soportados
+LANGUAGES = [
+    ('es', 'Español'),
+    ('en', 'English'),
+    ('pt', 'Português'),
+]
+
+LOCALE_PATHS = [
+    BASE_DIR / 'locale',
+]
+
+# Configuración de cookies de idioma
+LANGUAGE_COOKIE_NAME = 'django_language'
+LANGUAGE_COOKIE_AGE = 60 * 60 * 24 * 365  # 1 año
+LANGUAGE_COOKIE_PATH = '/'
+LANGUAGE_COOKIE_DOMAIN = None
+LANGUAGE_COOKIE_SECURE = False  # True en producción con HTTPS
+LANGUAGE_COOKIE_HTTPONLY = False
+LANGUAGE_COOKIE_SAMESITE = 'Lax'
 
 # Login URL
 LOGIN_URL = '/login/'
@@ -178,14 +228,30 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8000',
 ]
 
-# Configuración de seguridad para producción
+# Configuración de seguridad
+# En desarrollo local (DEBUG=True): Configuraciones relajadas para facilitar el uso
+# En producción (DEBUG=False): Configuraciones estrictas de seguridad
+
 if not DEBUG:
-    # Render maneja SSL automáticamente, no necesitamos SECURE_SSL_REDIRECT
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+    # Configuraciones de seguridad para PRODUCCIÓN
+    # Estas configuraciones NO afectan el uso local
+    SESSION_COOKIE_SECURE = True  # Solo cookies HTTPS
+    CSRF_COOKIE_SECURE = True  # Solo cookies HTTPS
+    SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'False') == 'True'  # Solo si está configurado
+    SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '0'))  # Solo si está configurado
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_HSTS_SECONDS > 0
+    SECURE_HSTS_PRELOAD = SECURE_HSTS_SECONDS > 0
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
+    SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+else:
+    # Configuraciones para DESARROLLO LOCAL
+    # Permiten uso sin HTTPS y facilitan el desarrollo
+    SESSION_COOKIE_SECURE = False  # Permite HTTP local
+    CSRF_COOKIE_SECURE = False  # Permite HTTP local
+    SECURE_SSL_REDIRECT = False  # No fuerza HTTPS en local
+    X_FRAME_OPTIONS = 'SAMEORIGIN'  # Permite iframes en desarrollo
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -254,17 +320,63 @@ LOGGING = {
     },
 }
 
-# Cache Configuration (usando memoria local para desarrollo)
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
-        'TIMEOUT': 300,  # 5 minutos por defecto
-        'OPTIONS': {
-            'MAX_ENTRIES': 1000
+# ============================================================================
+# CONFIGURACIÓN DE CACHE
+# ============================================================================
+# Para DESARROLLO LOCAL: Usa LocMemCache (memoria local) - Rápido y sin dependencias
+# Para PRODUCCIÓN: Usa Redis si está disponible (mejor para múltiples workers)
+# ============================================================================
+
+# En desarrollo local (DEBUG=True), usar siempre LocMemCache (más rápido y sin dependencias)
+# En producción (DEBUG=False), intentar Redis si está explícitamente habilitado
+USE_REDIS = os.environ.get('USE_REDIS', 'False').lower() == 'true'
+
+if USE_REDIS and not DEBUG:
+    # Solo intentar Redis en producción si está explícitamente habilitado
+    REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+    try:
+        import redis
+        # Intentar conectar a Redis con timeout muy corto
+        r = redis.from_url(REDIS_URL, socket_connect_timeout=1, socket_timeout=1)
+        r.ping()  # Probar conexión
+        CACHES = {
+            'default': {
+                'BACKEND': 'django_redis.cache.RedisCache',
+                'LOCATION': REDIS_URL,
+                'OPTIONS': {
+                    'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                    'SOCKET_CONNECT_TIMEOUT': 1,  # Timeout de conexión muy corto
+                    'SOCKET_TIMEOUT': 1,  # Timeout de operaciones muy corto
+                    'IGNORE_EXCEPTIONS': True,  # Si Redis falla, no rompe la app
+                },
+                'KEY_PREFIX': 'stockex',
+                'TIMEOUT': 300,  # 5 minutos por defecto
+            }
+        }
+    except (ImportError, redis.ConnectionError, redis.TimeoutError, Exception):
+        # Si Redis falla, usar LocMemCache
+        CACHES = {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+                'LOCATION': 'unique-snowflake',
+                'OPTIONS': {
+                    'MAX_ENTRIES': 1000,  # Máximo de entradas en cache
+                },
+                'TIMEOUT': 300,  # 5 minutos por defecto
+            }
+        }
+else:
+    # DESARROLLO LOCAL: Usar siempre LocMemCache (rápido, sin dependencias)
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+            'OPTIONS': {
+                'MAX_ENTRIES': 1000,  # Máximo de entradas en cache
+            },
+            'TIMEOUT': 300,  # 5 minutos por defecto
         }
     }
-}
 
 # Django REST Framework Configuration
 REST_FRAMEWORK = {
@@ -282,6 +394,43 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    # Throttling para prevenir abuso de la API
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',  # Usuarios no autenticados: 100 requests/hora
+        'user': '1000/hour',  # Usuarios autenticados: 1000 requests/hora
+    },
+    # Configuración de renderizado
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ],
+    # Manejo de excepciones
+    'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
+    # Schema para Swagger/OpenAPI
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# Configuración de drf-spectacular (Swagger/OpenAPI)
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'STOCKEX API',
+    'DESCRIPTION': 'API REST completa para el sistema de gestión de inventario STOCKEX',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'SCHEMA_PATH_PREFIX': '/api/v1/',
+    'COMPONENT_SPLIT_REQUEST': True,
+    'TAGS': [
+        {'name': 'Productos', 'description': 'Gestión de productos'},
+        {'name': 'Categorías', 'description': 'Gestión de categorías'},
+        {'name': 'Ventas', 'description': 'Gestión de ventas'},
+        {'name': 'Cotizaciones', 'description': 'Gestión de cotizaciones'},
+        {'name': 'Clientes', 'description': 'Gestión de clientes'},
+        {'name': 'Proveedores', 'description': 'Gestión de proveedores'},
+        {'name': 'Stock', 'description': 'Movimientos y notificaciones de stock'},
+    ],
 }
 
 # JWT Settings
@@ -291,3 +440,37 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
 }
+
+# Email Configuration (para reportes programados)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # En desarrollo, usar consola
+# Para producción, configurar:
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'tu-email@gmail.com'
+# EMAIL_HOST_PASSWORD = 'tu-password'
+DEFAULT_FROM_EMAIL = 'noreply@stockex.com'
+
+# Celery Configuration
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/1')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/1')
+
+# Configuración de Celery
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'America/Santiago'  # Ajusta según tu zona horaria
+CELERY_ENABLE_UTC = True
+
+# Configuración de tareas
+CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', 'False') == 'True'  # Para desarrollo/testing
+CELERY_TASK_EAGER_PROPAGATES = True
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutos máximo por tarea
+CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutos soft limit
+
+# Si Redis no está disponible, Celery usará el broker en memoria (solo para desarrollo)
+if CELERY_TASK_ALWAYS_EAGER:
+    # En modo eager, las tareas se ejecutan sincrónicamente (útil para desarrollo)
+    pass

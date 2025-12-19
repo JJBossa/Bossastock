@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block title %}Historial de Precios General - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item active">Historial de Precios</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-graph-up text-primary"></i> Historial de Precios General</h2>
+    <a href="{% url 'inicio' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Volver al Inicio
+    </a>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Producto:</label>
+                <select name="producto_id" class="form-select">
+                    <option value="">Todos</option>
+                    {% for prod in productos %}
+                    <option value="{{ prod.id }}" {% if producto_id == prod.id|stringformat:"s" %}selected{% endif %}>{{ prod.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Desde:</label>
+                <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Hasta:</label>
+                <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Buscar:</label>
+                <input type="text" name="q" class="form-control" value="{{ busqueda }}" placeholder="Nombre, SKU...">
+            </div>
+            <div class="col-md-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Filtrar
+                </button>
+                <a href="{% url 'historial_precios_general' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Limpiar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla de Historial -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Producto</th>
+                        <th>Precio Anterior</th>
+                        <th>Precio Nuevo</th>
+                        <th>Diferencia</th>
+                        <th>% Cambio</th>
+                        <th>Usuario</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for historial in page_obj %}
+                    <tr>
+                        <td>{{ historial.fecha|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            <a href="{% url 'detalle_producto' historial.producto.id %}">{{ historial.producto.nombre }}</a>
+                        </td>
+                        <td>${{ historial.precio_anterior|floatformat:0 }}</td>
+                        <td><strong>${{ historial.precio_nuevo|floatformat:0 }}</strong></td>
+                        <td>
+                            <span class="badge {% if historial.diferencia >= 0 %}bg-success{% else %}bg-danger{% endif %}">
+                                {% if historial.diferencia >= 0 %}+{% endif %}${{ historial.diferencia|floatformat:0 }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="{% if historial.porcentaje_cambio >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {% if historial.porcentaje_cambio >= 0 %}+{% endif %}{{ historial.porcentaje_cambio|floatformat:1 }}%
+                            </span>
+                        </td>
+                        <td>{{ historial.usuario.username|default:"Sistema" }}</td>
+                        <td>
+                            <a href="{% url 'historial_precios_producto' historial.producto.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> Ver
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">No hay historial de precios registrado</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Paginación">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if producto_id %}&producto_id={{ producto_id }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}{% if busqueda %}&q={{ busqueda }}{% endif %}">Anterior</a>
+                </li>
+                {% endif %}
+                <li class="page-item active">
+                    <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                </li>
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if producto_id %}&producto_id={{ producto_id }}{% endif %}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}{% if busqueda %}&q={{ busqueda }}{% endif %}">Siguiente</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

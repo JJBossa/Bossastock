@@ -8,6 +8,7 @@ from .models import Factura, ItemFactura, Proveedor, Producto, HistorialCambio, 
 from .forms_facturas import FacturaForm, ItemFacturaForm, ProveedorForm
 from .utils_ocr import extraer_texto_ocr, extraer_items_factura
 from .utils import es_admin_bossa, registrar_cambio
+from django.conf import settings
 
 @login_required
 def listar_facturas(request):
@@ -54,33 +55,58 @@ def subir_factura(request):
             factura.save()  # Guardar primero para tener el archivo disponible
 
             # =====================
-            # PROCESAR OCR
+            # PROCESAR OCR (ASÍNCRONO CON CELERY SI ESTÁ DISPONIBLE)
             # =====================
             texto_extraido = ""
+            usar_celery = not getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False)
+            
             try:
-                ruta_imagen = factura.archivo.path
-                
-                # Verificar que el archivo existe
-                import os
-                if not os.path.exists(ruta_imagen):
-                    messages.error(request, f'El archivo no se encontró en: {ruta_imagen}')
-                else:
-                    texto_extraido = extraer_texto_ocr(ruta_imagen)
-                    factura.texto_extraido = texto_extraido
-                    factura.save()
-                    
-                    # Debug: mostrar longitud del texto extraído
-                    if texto_extraido:
-                        messages.success(
-                            request, 
-                            f'OCR completado exitosamente. Se extrajeron {len(texto_extraido)} caracteres de texto.'
+                # Intentar usar Celery si está disponible
+                if usar_celery:
+                    try:
+                        from .tasks import procesar_factura_ocr_async
+                        # Procesar de forma asíncrona
+                        task = procesar_factura_ocr_async.delay(factura.id)
+                        messages.info(
+                            request,
+                            f'Factura subida exitosamente. El procesamiento OCR está en curso. '
+                            f'ID de tarea: {task.id}. La factura se actualizará automáticamente cuando termine.'
                         )
-                    else:
+                        # No esperamos el resultado, se procesará en background
+                        texto_extraido = ""  # Se procesará después
+                    except Exception as celery_error:
+                        # Si Celery falla, procesar de forma síncrona
+                        usar_celery = False
                         messages.warning(
                             request,
-                            'OCR completado pero no se extrajo texto. '
-                            'Verifica que la imagen sea legible y tenga buena calidad.'
+                            f'Celery no disponible ({str(celery_error)}). Procesando OCR de forma síncrona...'
                         )
+                
+                # Procesar de forma síncrona si Celery no está disponible o falló
+                if not usar_celery:
+                    ruta_imagen = factura.archivo.path
+                    
+                    # Verificar que el archivo existe
+                    import os
+                    if not os.path.exists(ruta_imagen):
+                        messages.error(request, f'El archivo no se encontró en: {ruta_imagen}')
+                    else:
+                        texto_extraido = extraer_texto_ocr(ruta_imagen)
+                        factura.texto_extraido = texto_extraido
+                        factura.save()
+                        
+                        # Debug: mostrar longitud del texto extraído
+                        if texto_extraido:
+                            messages.success(
+                                request, 
+                                f'OCR completado exitosamente. Se extrajeron {len(texto_extraido)} caracteres de texto.'
+                            )
+                        else:
+                            messages.warning(
+                                request,
+                                'OCR completado pero no se extrajo texto. '
+                                'Verifica que la imagen sea legible y tenga buena calidad.'
+                            )
                         
             except Exception as e:
                 import traceback

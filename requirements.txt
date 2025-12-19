@@ -23,4 +23,12 @@ factory-boy>=3.3.0
 djangorestframework>=3.14.0
 djangorestframework-simplejwt>=5.2.2
 django-filter>=23.3
+drf-spectacular>=0.27.0  # Para documentación Swagger/OpenAPI
+
+# Tareas asíncronas
+celery>=5.3.4
+redis>=5.0.1  # Para Celery broker y cache
+
+# Cache avanzado (opcional, con fallback)
+django-redis>=5.4.0
 

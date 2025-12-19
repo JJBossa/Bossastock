@@ -1,6 +1,15 @@
-# STOCKEX - Sistema Django
+# STOCKEX - Sistema de Gestión de Inventario
 
-Sistema de control de inventario desarrollado con Django que permite gestionar productos, buscar por nombre y filtrar por diferentes criterios.
+Sistema completo de gestión de inventario desarrollado con Django 5.2.8. Permite gestionar productos, ventas, clientes, almacenes, compras y mucho más.
+
+## 📋 Tabla de Contenidos
+- [Características](#características)
+- [Instalación](#instalación)
+- [Uso](#uso)
+- [Documentación](#documentación)
+- [Testing](#testing)
+- [Seguridad](#seguridad)
+- [Despliegue](#despliegue)
 
 ## Características
 
@@ -147,13 +156,91 @@ Puedes modificar los productos desde:
 - El panel de administración de Django (`/admin/`)
 - El comando `importar_productos.py` para agregar más productos
 
-## Tecnologías Utilizadas
+## 📚 Documentación
 
-- Django 5.2.8
-- Bootstrap 5.3.0
-- Bootstrap Icons
-- SQLite (base de datos por defecto)
-- Tesseract OCR (procesamiento de facturas)
-- ReportLab (exportar PDF)
-- OpenPyXL (exportar Excel)
+- **[Guía de Usuario](GUIA_USUARIO.md)** - Manual completo para usuarios
+- **[Documentación Técnica](DOCUMENTACION_TECNICA.md)** - Detalles técnicos del sistema
+- **[API Documentation](API_DOCUMENTATION.md)** - Documentación de la API REST
+
+## 🧪 Testing
+
+El proyecto incluye tests automatizados usando pytest:
+
+```bash
+# Ejecutar todos los tests
+pytest
+
+# Con cobertura de código
+pytest --cov=. --cov-report=html
+
+# Tests específicos
+pytest tests/test_models.py
+pytest tests/test_views.py
+```
+
+### Estructura de Tests
+- `tests/test_models.py` - Tests de modelos básicos
+- `tests/test_views.py` - Tests de vistas básicas
+- `tests/test_models_extended.py` - Tests extendidos de modelos
+- `tests/test_views_extended.py` - Tests extendidos de vistas
+- `tests/factories.py` - Factories para datos de prueba
+- `tests/conftest.py` - Fixtures globales
+
+## 🔒 Seguridad
+
+### Configuración Automática
+El sistema detecta automáticamente si está en desarrollo o producción:
+
+- **Desarrollo Local (DEBUG=True)**: Configuraciones relajadas para facilitar el uso
+- **Producción (DEBUG=False)**: Configuraciones estrictas de seguridad
+
+### Variables de Entorno Recomendadas para Producción
+```bash
+SECRET_KEY=tu-clave-secreta-muy-larga-y-aleatoria
+DEBUG=False
+ALLOWED_HOSTS=tu-dominio.com,www.tu-dominio.com
+SECURE_HSTS_SECONDS=31536000
+SECURE_SSL_REDIRECT=True
+```
+
+**Nota:** En desarrollo local, no necesitas configurar estas variables. El sistema funciona perfectamente sin ellas.
+
+## 🚀 Despliegue
+
+### Requisitos
+- Python 3.8+
+- PostgreSQL (producción) o SQLite (desarrollo)
+- Servidor web (Nginx/Apache) + Gunicorn
+
+### Pasos Rápidos
+1. Configurar variables de entorno (solo producción)
+2. `pip install -r requirements.txt`
+3. `python manage.py migrate`
+4. `python manage.py collectstatic`
+5. Iniciar con Gunicorn
+
+Ver [Documentación Técnica](DOCUMENTACION_TECNICA.md) para detalles completos.
+
+## 🛠️ Tecnologías Utilizadas
+
+- **Backend**: Django 5.2.8
+- **Frontend**: Bootstrap 5.3.0, Bootstrap Icons
+- **Base de Datos**: SQLite (desarrollo) / PostgreSQL (producción)
+- **API**: Django REST Framework
+- **Autenticación**: JWT + Session Authentication
+- **OCR**: Tesseract (procesamiento de facturas)
+- **Exportación**: ReportLab (PDF), OpenPyXL (Excel)
+- **Testing**: pytest, pytest-django, factory-boy
+
+## 📝 Licencia
+
+Este proyecto es de uso privado. Todos los derechos reservados.
+
+## 👤 Autor
+
+Juan Jose Bossa Canto
+
+---
+
+**¿Necesitas ayuda?** Consulta la [Guía de Usuario](GUIA_USUARIO.md) o la [Documentación Técnica](DOCUMENTACION_TECNICA.md).
 

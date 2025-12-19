@@ -1,8 +1,11 @@
+{% load i18n %}
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{ LANGUAGE_CODE|default:'es' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% csrf_token %}
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{% block title %}STOCKEX{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
@@ -19,18 +22,19 @@
         <div class="container-fluid">
             <a class="navbar-brand" href="{% url 'inicio' %}">
                 <i class="bi bi-box-seam"></i> STOCKEX
+                <small class="text-light ms-2" style="font-size: 0.7rem;">[{{ LANGUAGE_CODE }}|{{ current_language|default:'es' }}]</small>
             </a>
             <div class="navbar-nav ms-auto d-flex align-items-center">
                 <!-- Botón de Ventas - Grande y Visible (solo para usuarios no-admin) -->
                 {% if user.username != 'bossa' %}
                 <a href="{% url 'punto_venta' %}" class="btn btn-success btn-lg me-3" style="font-weight: 600; box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);">
-                    <i class="bi bi-cash-register"></i> Ventas
+                    <i class="bi bi-cash-register"></i> {% if t %}{{ t.Ventas }}{% else %}Ventas{% endif %}
                 </a>
                 {% else %}
                 <!-- Menú Principal para Admin -->
                 <div class="dropdown me-2">
                     <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-grid-3x3-gap"></i> Menú
+                        <i class="bi bi-grid-3x3-gap"></i> {% if t %}{{ t.Menú }}{% else %}Menú{% endif %}
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><h6 class="dropdown-header">Ventas</h6></li>
@@ -58,6 +62,29 @@
                     </ul>
                 </div>
                 {% endif %}
+                <!-- Selector de Idioma -->
+                <div class="dropdown me-2">
+                    <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Idioma">
+                        <i class="bi bi-translate"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a href="#" class="dropdown-item {% if LANGUAGE_CODE == 'es' or LANGUAGE_CODE|slice:':2' == 'es' %}active{% endif %}" onclick="cambiarIdioma('es'); return false;">
+                                <i class="bi bi-flag"></i> {% if t %}{{ t.Español }}{% else %}Español{% endif %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="dropdown-item {% if LANGUAGE_CODE == 'en' or LANGUAGE_CODE|slice:':2' == 'en' %}active{% endif %}" onclick="cambiarIdioma('en'); return false;">
+                                <i class="bi bi-flag"></i> {% if t %}{{ t.English }}{% else %}English{% endif %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="dropdown-item {% if LANGUAGE_CODE == 'pt' or LANGUAGE_CODE|slice:':2' == 'pt' %}active{% endif %}" onclick="cambiarIdioma('pt'); return false;">
+                                <i class="bi bi-flag"></i> {% if t %}{{ t.Português }}{% else %}Português{% endif %}
+                            </a>
+                        </li>
+                    </ul>
+                </div>
                 <button class="btn btn-outline-light btn-sm me-2" id="dark-mode-toggle" title="Modo Oscuro/Claro">
                     <i class="bi bi-moon-stars" id="dark-mode-icon"></i>
                 </button>
@@ -68,9 +95,9 @@
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
                         {% if user.username == 'bossa' %}
-                        <li><a class="dropdown-item" href="{% url 'dashboard' %}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                        <li><a class="dropdown-item" href="{% url 'dashboard' %}"><i class="bi bi-speedometer2"></i> {% if t %}{{ t.Dashboard }}{% else %}Dashboard{% endif %}</a></li>
                         {% else %}
-                        <li><a class="dropdown-item" href="{% url 'dashboard_usuario' %}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                        <li><a class="dropdown-item" href="{% url 'dashboard_usuario' %}"><i class="bi bi-speedometer2"></i> {% if t %}{{ t.Dashboard }}{% else %}Dashboard{% endif %}</a></li>
                         {% endif %}
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="{% url 'listar_ventas' %}"><i class="bi bi-clock-history text-primary"></i> Historial de Ventas</a></li>
@@ -128,6 +155,51 @@
     <script src="{% static 'js/mejoras-ux.js' %}"></script>
     <script src="{% static 'js/tooltips-primer-uso.js' %}"></script>
     <script src="{% static 'js/busqueda-global.js' %}"></script>
+    <script>
+        // Función para cambiar idioma con AJAX y token CSRF
+        function cambiarIdioma(idioma) {
+            // Obtener el token CSRF de múltiples fuentes
+            let csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                           document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+                           document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+            
+            if (!csrfToken) {
+                // Si no hay token CSRF, usar método GET como fallback
+                window.location.href = '{% url "cambiar_idioma" %}?idioma=' + idioma;
+                return;
+            }
+            
+            // Crear FormData para enviar el idioma
+            const formData = new FormData();
+            formData.append('idioma', idioma);
+            formData.append('csrfmiddlewaretoken', csrfToken);
+            
+            // Enviar solicitud POST con fetch
+            fetch('{% url "cambiar_idioma" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': csrfToken
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (response.ok || response.redirected) {
+                    // Recargar la página para aplicar el nuevo idioma
+                    window.location.reload();
+                } else {
+                    console.error('Error al cambiar idioma:', response.status);
+                    // Fallback: intentar con GET
+                    window.location.href = '{% url "cambiar_idioma" %}?idioma=' + idioma;
+                }
+            })
+            .catch(error => {
+                console.error('Error de red al cambiar idioma:', error);
+                // Fallback: intentar con GET
+                window.location.href = '{% url "cambiar_idioma" %}?idioma=' + idioma;
+            });
+        }
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

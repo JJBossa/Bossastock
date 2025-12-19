@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ reporte.nombre }} - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'listar_reportes_programados' %}">Reportes Programados</a></li>
+        <li class="breadcrumb-item active">{{ reporte.nombre }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-calendar-check text-primary"></i> {{ reporte.nombre }}</h2>
+    <div>
+        <a href="{% url 'ejecutar_reporte_ahora' reporte.id %}" class="btn btn-success me-2" onclick="return confirm('¿Ejecutar este reporte ahora?')">
+            <i class="bi bi-play-circle"></i> Ejecutar Ahora
+        </a>
+        <a href="{% url 'editar_reporte_programado' reporte.id %}" class="btn btn-warning me-2">
+            <i class="bi bi-pencil"></i> Editar
+        </a>
+        <a href="{% url 'inicio' %}" class="btn btn-secondary me-2">
+            <i class="bi bi-arrow-left"></i> Volver al Inicio
+        </a>
+        <a href="{% url 'listar_reportes_programados' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Información del Reporte</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tr>
+                        <th width="200">Nombre:</th>
+                        <td><strong>{{ reporte.nombre }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Tipo de Reporte:</th>
+                        <td>{{ reporte.get_tipo_reporte_display }}</td>
+                    </tr>
+                    <tr>
+                        <th>Formato:</th>
+                        <td><span class="badge bg-secondary">{{ reporte.get_formato_display }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Frecuencia:</th>
+                        <td>{{ reporte.get_frecuencia_display }}</td>
+                    </tr>
+                    {% if reporte.dia_semana is not None %}
+                    <tr>
+                        <th>Día de la Semana:</th>
+                        <td>
+                            {% if reporte.dia_semana == 0 %}Lunes
+                            {% elif reporte.dia_semana == 1 %}Martes
+                            {% elif reporte.dia_semana == 2 %}Miércoles
+                            {% elif reporte.dia_semana == 3 %}Jueves
+                            {% elif reporte.dia_semana == 4 %}Viernes
+                            {% elif reporte.dia_semana == 5 %}Sábado
+                            {% elif reporte.dia_semana == 6 %}Domingo
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% if reporte.dia_mes is not None %}
+                    <tr>
+                        <th>Día del Mes:</th>
+                        <td>{{ reporte.dia_mes }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <th>Hora de Envío:</th>
+                        <td>{{ reporte.hora_envio|time:"H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Destinatarios:</th>
+                        <td>{{ reporte.destinatarios }}</td>
+                    </tr>
+                    <tr>
+                        <th>Estado:</th>
+                        <td>
+                            {% if reporte.activo %}
+                            <span class="badge bg-success">Activo</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactivo</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Creado por:</th>
+                        <td>{{ reporte.creado_por.username|default:"Sistema" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Fecha Creación:</th>
+                        <td>{{ reporte.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Último Envío:</th>
+                        <td>
+                            {% if reporte.ultimo_envio %}
+                            {{ reporte.ultimo_envio|date:"d/m/Y H:i" }}
+                            {% else %}
+                            <span class="text-muted">Nunca ejecutado</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Próximo Envío:</th>
+                        <td>
+                            {% if reporte.proximo_envio %}
+                            <strong>{{ reporte.proximo_envio|date:"d/m/Y H:i" }}</strong>
+                            {% else %}
+                            <span class="text-muted">No programado</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Acciones</h5>
+            </div>
+            <div class="card-body">
+                <a href="{% url 'editar_reporte_programado' reporte.id %}" class="btn btn-warning w-100 mb-2">
+                    <i class="bi bi-pencil"></i> Editar Reporte
+                </a>
+                <a href="{% url 'ejecutar_reporte_ahora' reporte.id %}" class="btn btn-success w-100 mb-2" onclick="return confirm('¿Ejecutar este reporte ahora?')">
+                    <i class="bi bi-play-circle"></i> Ejecutar Ahora
+                </a>
+                <a href="{% url 'eliminar_reporte_programado' reporte.id %}" class="btn btn-danger w-100">
+                    <i class="bi bi-trash"></i> Eliminar
+                </a>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6>Información</h6>
+                <p class="small text-muted">
+                    Este reporte se enviará automáticamente según la frecuencia configurada.
+                    Puedes ejecutarlo manualmente en cualquier momento.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

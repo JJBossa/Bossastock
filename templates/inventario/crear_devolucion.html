@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+
+{% block title %}Crear Devolución - STOCKEX{% endblock %}
+
+{% block extra_css %}
+<style>
+    .item-venta-card { border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 5px; background: #f8f9fa; }
+    .item-seleccionado { border-color: #0d6efd !important; background: #e7f1ff !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'listar_devoluciones' %}">Devoluciones</a></li>
+        <li class="breadcrumb-item active">Crear Devolución</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-arrow-counterclockwise text-danger"></i> Crear Devolución</h2>
+    <div class="d-flex gap-2">
+        <a href="{% url 'inicio' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Inicio
+        </a>
+        <a href="{% url 'listar_devoluciones' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <form method="post" id="formDevolucion">
+            {% csrf_token %}
+            
+            <!-- Selección de Venta -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Seleccionar Venta</h5>
+                </div>
+                <div class="card-body">
+                    {% if venta %}
+                    <div class="alert alert-info">
+                        <strong>Venta seleccionada:</strong> {{ venta.numero_venta }} - 
+                        Cliente: {{ venta.cliente.nombre|default:"Cliente General" }} - 
+                        Total: ${{ venta.total|floatformat:0 }}
+                    </div>
+                    <input type="hidden" name="venta_id" value="{{ venta.id }}">
+                    {% else %}
+                    <div class="mb-3">
+                        <label for="venta_id" class="form-label">Venta *</label>
+                        <select name="venta_id" id="venta_id" class="form-select" required onchange="cargarItemsVenta()">
+                            <option value="">Seleccionar venta...</option>
+                            {% for v in ventas_recientes %}
+                            <option value="{{ v.id }}">{{ v.numero_venta }} - {{ v.cliente.nombre|default:"Cliente General" }} - ${{ v.total|floatformat:0 }} - {{ v.fecha|date:"d/m/Y" }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if venta or items_venta %}
+            <!-- Items de la Venta -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Items de la Venta</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Tipo de Devolución *</label>
+                        <select name="tipo_devolucion" id="tipo_devolucion" class="form-select" required onchange="toggleTipoDevolucion()">
+                            <option value="completa">Devolución Completa</option>
+                            <option value="parcial">Devolución Parcial</option>
+                        </select>
+                    </div>
+                    
+                    <div id="items-container">
+                        {% for item in items_venta %}
+                        <div class="item-venta-card" id="item-{{ item.id }}">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="items_seleccionados" value="{{ item.id }}" id="item_check_{{ item.id }}" onchange="toggleItem({{ item.id }})">
+                                <label class="form-check-label" for="item_check_{{ item.id }}">
+                                    <strong>{{ item.producto.nombre }}</strong>
+                                </label>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <small class="text-muted">Cantidad vendida:</small>
+                                    <p class="mb-0"><strong>{{ item.cantidad }}</strong></p>
+                                </div>
+                                <div class="col-md-3">
+                                    <small class="text-muted">Precio unitario:</small>
+                                    <p class="mb-0"><strong>${{ item.precio_unitario|floatformat:0 }}</strong></p>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Cantidad a devolver:</label>
+                                    <input type="number" name="cantidad_{{ item.id }}" id="cantidad_{{ item.id }}" 
+                                           class="form-control form-control-sm" min="1" max="{{ item.cantidad }}" 
+                                           value="{{ item.cantidad }}" disabled>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Motivo:</label>
+                                    <input type="text" name="motivo_{{ item.id }}" id="motivo_{{ item.id }}" 
+                                           class="form-control form-control-sm" placeholder="Motivo específico..." disabled>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Información de Devolución -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Información de Devolución</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="motivo" class="form-label">Motivo de la Devolución *</label>
+                        <input type="text" name="motivo" id="motivo" class="form-control" required placeholder="Ej: Producto defectuoso, Cliente insatisfecho, etc.">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="metodo_reembolso" class="form-label">Método de Reembolso *</label>
+                        <select name="metodo_reembolso" id="metodo_reembolso" class="form-select" required>
+                            <option value="efectivo">Efectivo</option>
+                            <option value="tarjeta">Tarjeta</option>
+                            <option value="transferencia">Transferencia</option>
+                            <option value="credito">Crédito en Cuenta</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notas" class="form-label">Notas Adicionales</label>
+                        <textarea name="notas" id="notas" class="form-control" rows="3" placeholder="Información adicional sobre la devolución..."></textarea>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <strong>Monto a devolver:</strong> <span id="monto-total">$0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-check-circle"></i> Crear Devolución
+                </button>
+                <a href="{% url 'listar_devoluciones' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                </a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleTipoDevolucion() {
+    const tipo = document.getElementById('tipo_devolucion').value;
+    const items = document.querySelectorAll('[id^="item-"]');
+    
+    items.forEach(itemDiv => {
+        const itemId = itemDiv.id.replace('item-', '');
+        const checkbox = document.getElementById('item_check_' + itemId);
+        const cantidadInput = document.getElementById('cantidad_' + itemId);
+        const motivoInput = document.getElementById('motivo_' + itemId);
+        
+        if (tipo === 'completa') {
+            checkbox.checked = true;
+            checkbox.disabled = false;
+            cantidadInput.disabled = false;
+            motivoInput.disabled = false;
+            itemDiv.classList.add('item-seleccionado');
+        } else {
+            checkbox.disabled = false;
+            cantidadInput.disabled = !checkbox.checked;
+            motivoInput.disabled = !checkbox.checked;
+        }
+    });
+    
+    calcularMontoTotal();
+}
+
+function toggleItem(itemId) {
+    const checkbox = document.getElementById('item_check_' + itemId);
+    const cantidadInput = document.getElementById('cantidad_' + itemId);
+    const motivoInput = document.getElementById('motivo_' + itemId);
+    const itemDiv = document.getElementById('item-' + itemId);
+    
+    cantidadInput.disabled = !checkbox.checked;
+    motivoInput.disabled = !checkbox.checked;
+    
+    if (checkbox.checked) {
+        itemDiv.classList.add('item-seleccionado');
+    } else {
+        itemDiv.classList.remove('item-seleccionado');
+    }
+    
+    calcularMontoTotal();
+}
+
+function calcularMontoTotal() {
+    let total = 0;
+    const itemsSeleccionados = document.querySelectorAll('input[name="items_seleccionados"]:checked');
+    
+    itemsSeleccionados.forEach(checkbox => {
+        const itemId = checkbox.value;
+        const cantidad = parseInt(document.getElementById('cantidad_' + itemId).value) || 0;
+        // Obtener precio desde el texto que muestra "Precio unitario: $X"
+        const precioText = checkbox.closest('.item-venta-card').querySelectorAll('p.mb-0 strong')[1];
+        if (precioText) {
+            const precioStr = precioText.textContent.replace('$', '').replace(/\./g, '').replace(/\s/g, '');
+            const precio = parseFloat(precioStr) || 0;
+            total += cantidad * precio;
+        }
+    });
+    
+    document.getElementById('monto-total').textContent = '$' + total.toLocaleString('es-CL');
+}
+
+// Inicializar
+document.addEventListener('DOMContentLoaded', function() {
+    toggleTipoDevolucion();
+    document.querySelectorAll('[id^="cantidad_"]').forEach(input => {
+        input.addEventListener('input', calcularMontoTotal);
+    });
+});
+</script>
+{% endblock %}
+

@@ -5,6 +5,11 @@ Estos endpoints están en paralelo con los existentes, NO los reemplazan
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularRedocView,
+    SpectacularSwaggerView,
+)
 from .api_views import (
     ProductoViewSet, CategoriaViewSet, VentaViewSet,
     CotizacionViewSet, MovimientoStockViewSet,
@@ -30,5 +35,10 @@ urlpatterns = [
     # Autenticación JWT
     path('auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    
+    # Documentación Swagger/OpenAPI
+    path('schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('swagger/', SpectacularSwaggerView.as_view(url_name='api:schema'), name='swagger-ui'),
+    path('redoc/', SpectacularRedocView.as_view(url_name='api:schema'), name='redoc'),
 ]
 

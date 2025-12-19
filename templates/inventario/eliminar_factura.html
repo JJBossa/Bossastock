@@ -32,7 +32,10 @@
                 <form method="post">
                     {% csrf_token %}
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <a href="{% url 'detalle_factura' factura.id %}" class="btn btn-secondary">
+                        <a href="{% url 'inicio' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Volver al Inicio
+                        </a>
+                        <a href="{% url 'detalle_factura' factura.id %}" class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-left"></i> Cancelar
                         </a>
                         <button type="submit" class="btn btn-danger">

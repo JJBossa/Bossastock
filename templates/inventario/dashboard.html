@@ -256,88 +256,11 @@
 {% endblock %}
 
 {% block extra_js %}
+{% load static %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script src="{% static 'js/dashboard-drag-drop.js' %}"></script>
 <script>
-// Dashboard personalizable
-let modoPersonalizacion = false;
-
-function togglePersonalizacion() {
-    modoPersonalizacion = !modoPersonalizacion;
-    const widgets = document.querySelectorAll('.dashboard-widget');
-    const btn = document.getElementById('btn-personalizar-dashboard');
-    
-    if (modoPersonalizacion) {
-        btn.innerHTML = '<i class="bi bi-check"></i> Guardar';
-        btn.classList.remove('btn-outline-primary');
-        btn.classList.add('btn-primary');
-        
-        widgets.forEach(widget => {
-            widget.style.cursor = 'move';
-            widget.draggable = true;
-            widget.querySelector('.btn-opacity-75').classList.remove('d-none');
-            
-            widget.addEventListener('dragstart', handleDragStart);
-            widget.addEventListener('dragover', handleDragOver);
-            widget.addEventListener('drop', handleDrop);
-            widget.addEventListener('dragend', handleDragEnd);
-        });
-    } else {
-        btn.innerHTML = '<i class="bi bi-layout-three-columns"></i> Personalizar';
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline-primary');
-        
-        widgets.forEach(widget => {
-            widget.style.cursor = '';
-            widget.draggable = false;
-            widget.querySelector('.btn-opacity-75').classList.add('d-none');
-        });
-        
-        // Guardar orden
-        guardarOrdenDashboard();
-    }
-}
-
-let draggedElement = null;
-
-function handleDragStart(e) {
-    draggedElement = this;
-    this.style.opacity = '0.5';
-    e.dataTransfer.effectAllowed = 'move';
-}
-
-function handleDragOver(e) {
-    if (e.preventDefault) {
-        e.preventDefault();
-    }
-    e.dataTransfer.dropEffect = 'move';
-    return false;
-}
-
-function handleDrop(e) {
-    if (e.stopPropagation) {
-        e.stopPropagation();
-    }
-    
-    if (draggedElement !== this) {
-        const container = this.parentElement;
-        const allWidgets = Array.from(container.querySelectorAll('.dashboard-widget'));
-        const draggedIndex = allWidgets.indexOf(draggedElement);
-        const targetIndex = allWidgets.indexOf(this);
-        
-        if (draggedIndex < targetIndex) {
-            container.insertBefore(draggedElement, this.nextSibling);
-        } else {
-            container.insertBefore(draggedElement, this);
-        }
-    }
-    
-    return false;
-}
-
-function handleDragEnd(e) {
-    this.style.opacity = '';
-    draggedElement = null;
-}
-
+// Dashboard personalizable - Funciones adicionales
 function ocultarWidget(widgetId) {
     const widget = document.querySelector(`[data-widget-id="${widgetId}"]`);
     if (widget) {
@@ -355,33 +278,46 @@ function guardarOrdenDashboard() {
         .filter(w => w.style.display === 'none')
         .map(w => w.dataset.widgetId);
     localStorage.setItem('dashboardOcultos', JSON.stringify(ocultos));
+    
+    // Guardar también en servidor
+    fetch('{% url "guardar_orden_dashboard" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ orden: orden })
+    }).catch(err => console.log('Error al guardar orden:', err));
 }
 
-function cargarOrdenDashboard() {
-    const orden = JSON.parse(localStorage.getItem('dashboardOrden') || '[]');
-    const ocultos = JSON.parse(localStorage.getItem('dashboardOcultos') || '[]');
-    const container = document.getElementById('dashboard-widgets');
-    
-    if (orden.length > 0 && container) {
-        orden.forEach(widgetId => {
-            const widget = container.querySelector(`[data-widget-id="${widgetId}"]`);
-            if (widget) {
-                container.appendChild(widget);
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
             }
-        });
-    }
-    
-    ocultos.forEach(widgetId => {
-        const widget = container.querySelector(`[data-widget-id="${widgetId}"]`);
-        if (widget) {
-            widget.style.display = 'none';
         }
-    });
+    }
+    return cookieValue;
 }
-
-// Cargar orden al iniciar
-document.addEventListener('DOMContentLoaded', cargarOrdenDashboard);
 </script>
+<style>
+.dashboard-widget.personalizando {
+    border: 2px dashed #007bff;
+    background-color: rgba(0, 123, 255, 0.1);
+}
+.dashboard-widget.drag-over {
+    border: 2px solid #28a745;
+    background-color: rgba(40, 167, 69, 0.2);
+}
+.sortable-ghost {
+    opacity: 0.4;
+}
+</style>
 {% endblock %}
 
 {% block ayuda %}

@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Reporte Programado - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'listar_reportes_programados' %}">Reportes Programados</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'detalle_reporte_programado' reporte.id %}">{{ reporte.nombre }}</a></li>
+        <li class="breadcrumb-item active">Editar</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-calendar-check text-primary"></i> Editar Reporte Programado</h2>
+    <div class="d-flex gap-2">
+        <a href="{% url 'inicio' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Inicio
+        </a>
+        <a href="{% url 'detalle_reporte_programado' reporte.id %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">Nombre del Reporte *</label>
+                        <input type="text" name="nombre" id="nombre" class="form-control" value="{{ reporte.nombre }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="tipo_reporte" class="form-label">Tipo de Reporte *</label>
+                        <select name="tipo_reporte" id="tipo_reporte" class="form-select" required>
+                            <option value="ventas" {% if reporte.tipo_reporte == 'ventas' %}selected{% endif %}>Reporte de Ventas</option>
+                            <option value="inventario" {% if reporte.tipo_reporte == 'inventario' %}selected{% endif %}>Reporte de Inventario</option>
+                            <option value="stock_bajo" {% if reporte.tipo_reporte == 'stock_bajo' %}selected{% endif %}>Productos con Stock Bajo</option>
+                            <option value="cuentas_cobrar" {% if reporte.tipo_reporte == 'cuentas_cobrar' %}selected{% endif %}>Cuentas por Cobrar</option>
+                            <option value="completo" {% if reporte.tipo_reporte == 'completo' %}selected{% endif %}>Reporte Completo</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="formato" class="form-label">Formato *</label>
+                        <select name="formato" id="formato" class="form-select" required>
+                            <option value="pdf" {% if reporte.formato == 'pdf' %}selected{% endif %}>PDF</option>
+                            <option value="excel" {% if reporte.formato == 'excel' %}selected{% endif %}>Excel</option>
+                            <option value="csv" {% if reporte.formato == 'csv' %}selected{% endif %}>CSV</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="frecuencia" class="form-label">Frecuencia *</label>
+                        <select name="frecuencia" id="frecuencia" class="form-select" required onchange="toggleFrecuenciaFields()">
+                            <option value="diario" {% if reporte.frecuencia == 'diario' %}selected{% endif %}>Diario</option>
+                            <option value="semanal" {% if reporte.frecuencia == 'semanal' %}selected{% endif %}>Semanal</option>
+                            <option value="mensual" {% if reporte.frecuencia == 'mensual' %}selected{% endif %}>Mensual</option>
+                            <option value="personalizado" {% if reporte.frecuencia == 'personalizado' %}selected{% endif %}>Personalizado</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="div-dia-semana" style="display: {% if reporte.frecuencia == 'semanal' %}block{% else %}none{% endif %};">
+                        <label for="dia_semana" class="form-label">Día de la Semana *</label>
+                        <select name="dia_semana" id="dia_semana" class="form-select">
+                            <option value="0" {% if reporte.dia_semana == 0 %}selected{% endif %}>Lunes</option>
+                            <option value="1" {% if reporte.dia_semana == 1 %}selected{% endif %}>Martes</option>
+                            <option value="2" {% if reporte.dia_semana == 2 %}selected{% endif %}>Miércoles</option>
+                            <option value="3" {% if reporte.dia_semana == 3 %}selected{% endif %}>Jueves</option>
+                            <option value="4" {% if reporte.dia_semana == 4 %}selected{% endif %}>Viernes</option>
+                            <option value="5" {% if reporte.dia_semana == 5 %}selected{% endif %}>Sábado</option>
+                            <option value="6" {% if reporte.dia_semana == 6 %}selected{% endif %}>Domingo</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="div-dia-mes" style="display: {% if reporte.frecuencia == 'mensual' %}block{% else %}none{% endif %};">
+                        <label for="dia_mes" class="form-label">Día del Mes *</label>
+                        <input type="number" name="dia_mes" id="dia_mes" class="form-control" min="1" max="31" value="{{ reporte.dia_mes|default:'' }}" placeholder="1-31">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="hora_envio" class="form-label">Hora de Envío *</label>
+                        <input type="time" name="hora_envio" id="hora_envio" class="form-control" value="{{ reporte.hora_envio|time:'H:i' }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="destinatarios" class="form-label">Destinatarios (Emails) *</label>
+                        <textarea name="destinatarios" id="destinatarios" class="form-control" rows="3" required>{{ reporte.destinatarios }}</textarea>
+                        <small class="text-muted">Separa múltiples emails con comas</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="activo" id="activo" {% if reporte.activo %}checked{% endif %}>
+                            <label class="form-check-label" for="activo">
+                                Activo
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-circle"></i> Guardar Cambios
+                        </button>
+                        <a href="{% url 'detalle_reporte_programado' reporte.id %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleFrecuenciaFields() {
+    const frecuencia = document.getElementById('frecuencia').value;
+    const divDiaSemana = document.getElementById('div-dia-semana');
+    const divDiaMes = document.getElementById('div-dia-mes');
+    
+    if (frecuencia === 'semanal') {
+        divDiaSemana.style.display = 'block';
+        divDiaMes.style.display = 'none';
+    } else if (frecuencia === 'mensual') {
+        divDiaSemana.style.display = 'none';
+        divDiaMes.style.display = 'block';
+    } else {
+        divDiaSemana.style.display = 'none';
+        divDiaMes.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}
+

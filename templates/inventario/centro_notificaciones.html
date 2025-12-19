@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+
+{% block title %}Notificaciones - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item active">Notificaciones</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-bell text-warning"></i> Centro de Notificaciones</h2>
+    <div>
+        {% if no_leidas > 0 %}
+        <button type="button" class="btn btn-primary me-2" onclick="marcarTodasLeidas()">
+            <i class="bi bi-check-all"></i> Marcar Todas como Leídas
+        </button>
+        {% endif %}
+        <a href="{% url 'inicio' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Inicio
+        </a>
+    </div>
+</div>
+
+{% if no_leidas > 0 %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i>
+    Tienes <strong>{{ no_leidas }}</strong> notificación{{ no_leidas|pluralize }} sin leer.
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-body">
+        {% if notificaciones %}
+        <div class="list-group">
+            {% for notificacion in notificaciones %}
+            <div class="list-group-item {% if not notificacion.leida %}list-group-item-warning{% endif %}" id="notif-{{ notificacion.id }}">
+                <div class="d-flex w-100 justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">
+                            {% if not notificacion.leida %}
+                            <span class="badge bg-warning text-dark me-2">Nueva</span>
+                            {% endif %}
+                            {{ notificacion.titulo }}
+                        </h6>
+                        <p class="mb-1">{{ notificacion.mensaje }}</p>
+                        <small class="text-muted">
+                            <i class="bi bi-clock"></i> {{ notificacion.fecha|date:"d/m/Y H:i" }}
+                            <span class="badge bg-secondary ms-2">{{ notificacion.get_tipo_display }}</span>
+                        </small>
+                    </div>
+                    <div class="ms-3">
+                        {% if not notificacion.leida %}
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="marcarLeida({{ notificacion.id }})">
+                            <i class="bi bi-check"></i> Marcar Leída
+                        </button>
+                        {% endif %}
+                        {% if notificacion.url_relacionada %}
+                        <a href="{{ notificacion.url_relacionada }}" class="btn btn-sm btn-primary">
+                            <i class="bi bi-arrow-right"></i> Ver
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-bell-slash" style="font-size: 3rem;"></i>
+            <p class="mt-3">No tienes notificaciones</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function marcarLeida(notificacionId) {
+    fetch(`/notificaciones/${notificacionId}/marcar-leida/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const notif = document.getElementById(`notif-${notificacionId}`);
+            notif.classList.remove('list-group-item-warning');
+            const btn = notif.querySelector('button');
+            if (btn) btn.remove();
+        }
+    });
+}
+
+function marcarTodasLeidas() {
+    fetch('/notificaciones/marcar-todas-leidas/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    });
+}
+</script>
+{% endblock %}
+

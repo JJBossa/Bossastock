@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+
+{% block title %}Reportes Programados - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item active">Reportes Programados</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-calendar-check text-primary"></i> Reportes Programados</h2>
+    <div>
+        <a href="{% url 'crear_reporte_programado' %}" class="btn btn-primary me-2">
+            <i class="bi bi-plus-circle"></i> Crear Reporte Programado
+        </a>
+        <a href="{% url 'inicio' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Inicio
+        </a>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Estado:</label>
+                <select name="activo" class="form-select">
+                    <option value="">Todos</option>
+                    <option value="si" {% if activo == 'si' %}selected{% endif %}>Activos</option>
+                    <option value="no" {% if activo == 'no' %}selected{% endif %}>Inactivos</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Tipo:</label>
+                <select name="tipo" class="form-select">
+                    <option value="">Todos</option>
+                    <option value="ventas" {% if tipo == 'ventas' %}selected{% endif %}>Ventas</option>
+                    <option value="inventario" {% if tipo == 'inventario' %}selected{% endif %}>Inventario</option>
+                    <option value="stock_bajo" {% if tipo == 'stock_bajo' %}selected{% endif %}>Stock Bajo</option>
+                    <option value="cuentas_cobrar" {% if tipo == 'cuentas_cobrar' %}selected{% endif %}>Cuentas por Cobrar</option>
+                    <option value="completo" {% if tipo == 'completo' %}selected{% endif %}>Completo</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Filtrar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla de Reportes -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Tipo</th>
+                        <th>Formato</th>
+                        <th>Frecuencia</th>
+                        <th>Hora</th>
+                        <th>Destinatarios</th>
+                        <th>Último Envío</th>
+                        <th>Próximo Envío</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for reporte in page_obj %}
+                    <tr>
+                        <td><strong>{{ reporte.nombre }}</strong></td>
+                        <td>{{ reporte.get_tipo_reporte_display }}</td>
+                        <td><span class="badge bg-secondary">{{ reporte.get_formato_display }}</span></td>
+                        <td>{{ reporte.get_frecuencia_display }}</td>
+                        <td>{{ reporte.hora_envio|time:"H:i" }}</td>
+                        <td><small>{{ reporte.destinatarios|truncatewords:3 }}</small></td>
+                        <td>
+                            {% if reporte.ultimo_envio %}
+                            {{ reporte.ultimo_envio|date:"d/m/Y H:i" }}
+                            {% else %}
+                            <span class="text-muted">Nunca</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if reporte.proximo_envio %}
+                            <strong>{{ reporte.proximo_envio|date:"d/m/Y H:i" }}</strong>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if reporte.activo %}
+                            <span class="badge bg-success">Activo</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'detalle_reporte_programado' reporte.id %}" class="btn btn-outline-primary" title="Ver">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'editar_reporte_programado' reporte.id %}" class="btn btn-outline-warning" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'ejecutar_reporte_ahora' reporte.id %}" class="btn btn-outline-success" title="Ejecutar Ahora" onclick="return confirm('¿Ejecutar este reporte ahora?')">
+                                    <i class="bi bi-play-circle"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted">No hay reportes programados</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Paginación">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                </li>
+                {% endif %}
+                <li class="page-item active">
+                    <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                </li>
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

@@ -344,8 +344,6 @@
 {% block extra_js %}
 <script>
 let carrito = [];
-let codigoTimeout = null;
-
 // Lista de productos disponibles para búsqueda
 let productosDisponibles = [
     {% for producto in productos %}
@@ -386,15 +384,38 @@ function buscarProductosPOS() {
 }
 
 // Escuchar entrada del lector de código de barras
-document.getElementById('codigo-input').addEventListener('input', function() {
+// Los lectores USB/HID suelen enviar el código rápidamente seguido de Enter
+const codigoInput = document.getElementById('codigo-input');
+
+// Detectar cuando se presiona Enter (típico de lectores de código de barras)
+codigoInput.addEventListener('keydown', function(e) {
+    // Si se presiona Enter y hay texto, procesar inmediatamente
+    if (e.key === 'Enter' && this.value.trim().length > 0) {
+        e.preventDefault();
+        const codigo = this.value.trim();
+        if (codigo.length >= 3) {
+            buscarProductoPorCodigo(codigo);
+            this.value = '';
+            codigoBuffer = '';
+        }
+    }
+});
+
+// También escuchar cambios en el input (para lectores que no envían Enter)
+codigoInput.addEventListener('input', function() {
     clearTimeout(codigoTimeout);
     const codigo = this.value.trim();
     
+    // Si el código tiene al menos 3 caracteres, esperar un poco más para ver si viene más
+    // Los códigos de barras típicos tienen 8-13 caracteres
     if (codigo.length >= 3) {
         codigoTimeout = setTimeout(() => {
-            buscarProductoPorCodigo(codigo);
-            this.value = '';
-        }, 300);
+            // Solo procesar si el código parece completo (8+ caracteres) o si no hay más entrada
+            if (codigo.length >= 8 || codigo.length >= 3) {
+                buscarProductoPorCodigo(codigo);
+                this.value = '';
+            }
+        }, 150); // Reducido de 300ms para respuesta más rápida
     }
 });
 

@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}Eliminar Reporte Programado - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'listar_reportes_programados' %}">Reportes Programados</a></li>
+        <li class="breadcrumb-item active">Eliminar</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-6 mx-auto">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Eliminar Reporte Programado</h5>
+            </div>
+            <div class="card-body">
+                <p>¿Estás seguro de que deseas eliminar el reporte programado <strong>"{{ reporte.nombre }}"</strong>?</p>
+                <p class="text-muted">Esta acción no se puede deshacer.</p>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'inicio' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Volver al Inicio
+                        </a>
+                        <a href="{% url 'detalle_reporte_programado' reporte.id %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Sí, Eliminar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

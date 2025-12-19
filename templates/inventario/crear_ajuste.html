@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+
+{% block title %}Crear Ajuste de Inventario - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'listar_ajustes' %}">Ajustes</a></li>
+        <li class="breadcrumb-item active">Crear Ajuste</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-sliders text-warning"></i> Crear Ajuste de Inventario</h2>
+    <div class="d-flex gap-2">
+        <a href="{% url 'inicio' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Inicio
+        </a>
+        <a href="{% url 'listar_ajustes' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-warning text-white">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Información</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Los ajustes de inventario requieren aprobación antes de actualizar el stock. 
+                    Esto permite mantener un control y auditoría de los cambios en el inventario.
+                </p>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="producto_id" class="form-label">Producto *</label>
+                        <select name="producto_id" id="producto_id" class="form-select" required onchange="actualizarStockActual()">
+                            <option value="">Seleccionar producto...</option>
+                            {% for producto in productos %}
+                            <option value="{{ producto.id }}" data-stock="{{ producto.stock }}">{{ producto.nombre }} (Stock: {{ producto.stock }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Stock Actual:</label>
+                        <input type="text" id="stock_actual" class="form-control" readonly value="Selecciona un producto">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="tipo_ajuste" class="form-label">Tipo de Ajuste *</label>
+                        <select name="tipo_ajuste" id="tipo_ajuste" class="form-select" required>
+                            <option value="correccion">Corrección (establecer cantidad exacta)</option>
+                            <option value="incremento">Incremento (aumentar stock)</option>
+                            <option value="decremento">Decremento (reducir stock)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="cantidad_nueva" class="form-label">Cantidad Nueva *</label>
+                        <input type="number" name="cantidad_nueva" id="cantidad_nueva" class="form-control" min="0" required>
+                        <small class="text-muted">Ingresa la cantidad final que debe tener el producto</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="motivo" class="form-label">Motivo del Ajuste *</label>
+                        <input type="text" name="motivo" id="motivo" class="form-control" required placeholder="Ej: Inventario físico, Corrección de error, etc.">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notas" class="form-label">Notas Adicionales</label>
+                        <textarea name="notas" id="notas" class="form-control" rows="3" placeholder="Información adicional sobre el ajuste..."></textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-circle"></i> Crear Ajuste
+                        </button>
+                        <a href="{% url 'listar_ajustes' %}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function actualizarStockActual() {
+    const select = document.getElementById('producto_id');
+    const stockActual = document.getElementById('stock_actual');
+    const cantidadNueva = document.getElementById('cantidad_nueva');
+    
+    if (select.value) {
+        const option = select.options[select.selectedIndex];
+        const stock = option.getAttribute('data-stock');
+        stockActual.value = stock + ' unidades';
+        cantidadNueva.value = stock; // Sugerir el stock actual como valor inicial
+    } else {
+        stockActual.value = 'Selecciona un producto';
+        cantidadNueva.value = '';
+    }
+}
+</script>
+{% endblock %}
+

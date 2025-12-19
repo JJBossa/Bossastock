@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}Detalle de Log - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'listar_logs' %}">Logs</a></li>
+        <li class="breadcrumb-item active">Detalle</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-journal-text text-warning"></i> Detalle de Log</h2>
+    <div class="d-flex gap-2">
+        <a href="{% url 'inicio' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Inicio
+        </a>
+        <a href="{% url 'listar_logs' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Información del Log</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tr>
+                        <th width="200">Fecha y Hora:</th>
+                        <td>{{ log.fecha|date:"d/m/Y H:i:s" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Usuario:</th>
+                        <td>{{ log.usuario.username|default:"Sistema" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Tipo de Acción:</th>
+                        <td><span class="badge bg-secondary">{{ log.get_tipo_accion_display }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Módulo:</th>
+                        <td><span class="badge bg-info">{{ log.get_modulo_display }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Objeto ID:</th>
+                        <td>{{ log.objeto_id|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Tipo de Objeto:</th>
+                        <td>{{ log.objeto_tipo|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>IP Address:</th>
+                        <td>{{ log.ip_address|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>User Agent:</th>
+                        <td><small>{{ log.user_agent|default:"-" }}</small></td>
+                    </tr>
+                    <tr>
+                        <th>Descripción:</th>
+                        <td>{{ log.descripcion }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        {% if log.datos_anteriores or log.datos_nuevos %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Cambios Realizados</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% if log.datos_anteriores %}
+                    <div class="col-md-6">
+                        <h6 class="text-danger">Datos Anteriores:</h6>
+                        <pre class="bg-light p-3 rounded">{{ log.datos_anteriores|pprint }}</pre>
+                    </div>
+                    {% endif %}
+                    {% if log.datos_nuevos %}
+                    <div class="col-md-6">
+                        <h6 class="text-success">Datos Nuevos:</h6>
+                        <pre class="bg-light p-3 rounded">{{ log.datos_nuevos|pprint }}</pre>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

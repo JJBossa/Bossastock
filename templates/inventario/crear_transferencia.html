@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+
+{% block title %}Crear Transferencia - STOCKEX{% endblock %}
+
+{% block extra_css %}
+<style>
+    .producto-item { border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 5px; background: #f8f9fa; }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'listar_almacenes' %}">Almacenes</a></li>
+        <li class="breadcrumb-item active">Crear Transferencia</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-arrow-left-right text-primary"></i> Crear Transferencia entre Almacenes</h2>
+    <div class="d-flex gap-2">
+        <a href="{% url 'inicio' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Inicio
+        </a>
+        <a href="{% url 'listar_almacenes' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <form method="post" id="formTransferencia">
+            {% csrf_token %}
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5>Información de la Transferencia</h5>
+                            <div class="mb-3">
+                                <label class="form-label">Almacén Origen *</label>
+                                <select name="almacen_origen" class="form-select" required id="selectAlmacenOrigen">
+                                    <option value="">Seleccionar almacén origen...</option>
+                                    {% for almacen in almacenes %}
+                                    <option value="{{ almacen.id }}">{{ almacen.nombre }} ({{ almacen.codigo }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Almacén Destino *</label>
+                                <select name="almacen_destino" class="form-select" required id="selectAlmacenDestino">
+                                    <option value="">Seleccionar almacén destino...</option>
+                                    {% for almacen in almacenes %}
+                                    <option value="{{ almacen.id }}">{{ almacen.nombre }} ({{ almacen.codigo }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Notas</label>
+                                <textarea name="notas" class="form-control" rows="3" placeholder="Notas adicionales sobre la transferencia..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5>Agregar Productos</h5>
+                            <div class="mb-3">
+                                <label class="form-label">Producto</label>
+                                <select class="form-select" id="selectProducto">
+                                    <option value="">Seleccionar producto...</option>
+                                    {% for producto in productos %}
+                                    <option value="{{ producto.id }}" data-nombre="{{ producto.nombre }}">{{ producto.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Cantidad</label>
+                                <input type="number" class="form-control" id="inputCantidad" min="1" value="1">
+                            </div>
+                            <button type="button" class="btn btn-primary w-100" onclick="agregarProducto()">
+                                <i class="bi bi-plus-circle"></i> Agregar Producto
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Productos a Transferir</h5>
+                </div>
+                <div class="card-body">
+                    <div id="listaProductos">
+                        <p class="text-muted text-center">No hay productos agregados</p>
+                    </div>
+                    <input type="hidden" name="items" id="itemsJson" value="[]">
+                </div>
+            </div>
+            
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-check-circle"></i> Crear Transferencia
+                </button>
+                <a href="{% url 'listar_almacenes' %}" class="btn btn-secondary btn-lg">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let productosSeleccionados = [];
+
+function agregarProducto() {
+    const selectProducto = document.getElementById('selectProducto');
+    const inputCantidad = document.getElementById('inputCantidad');
+    const productoId = selectProducto.value;
+    const cantidad = parseInt(inputCantidad.value);
+    
+    if (!productoId || cantidad < 1) {
+        alert('Por favor selecciona un producto y una cantidad válida');
+        return;
+    }
+    
+    const productoNombre = selectProducto.options[selectProducto.selectedIndex].text;
+    
+    // Verificar si el producto ya está agregado
+    if (productosSeleccionados.find(p => p.id === productoId)) {
+        alert('Este producto ya está en la lista');
+        return;
+    }
+    
+    productosSeleccionados.push({
+        producto_id: productoId,
+        nombre: productoNombre,
+        cantidad: cantidad
+    });
+    
+    actualizarLista();
+    selectProducto.value = '';
+    inputCantidad.value = 1;
+}
+
+function eliminarProducto(index) {
+    productosSeleccionados.splice(index, 1);
+    actualizarLista();
+}
+
+function actualizarLista() {
+    const listaProductos = document.getElementById('listaProductos');
+    const itemsJson = document.getElementById('itemsJson');
+    
+    if (productosSeleccionados.length === 0) {
+        listaProductos.innerHTML = '<p class="text-muted text-center">No hay productos agregados</p>';
+        itemsJson.value = '[]';
+        return;
+    }
+    
+    let html = '<div class="table-responsive"><table class="table table-sm">';
+    html += '<thead><tr><th>Producto</th><th>Cantidad</th><th>Acción</th></tr></thead><tbody>';
+    
+    productosSeleccionados.forEach((producto, index) => {
+        html += `<tr>
+            <td>${producto.nombre}</td>
+            <td>${producto.cantidad}</td>
+            <td>
+                <button type="button" class="btn btn-sm btn-danger" onclick="eliminarProducto(${index})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>`;
+    });
+    
+    html += '</tbody></table></div>';
+    listaProductos.innerHTML = html;
+    itemsJson.value = JSON.stringify(productosSeleccionados);
+}
+
+document.getElementById('formTransferencia').addEventListener('submit', function(e) {
+    if (productosSeleccionados.length === 0) {
+        e.preventDefault();
+        alert('Debes agregar al menos un producto a la transferencia');
+        return false;
+    }
+    
+    const origen = document.getElementById('selectAlmacenOrigen').value;
+    const destino = document.getElementById('selectAlmacenDestino').value;
+    
+    if (origen === destino) {
+        e.preventDefault();
+        alert('El almacén origen y destino no pueden ser el mismo');
+        return false;
+    }
+});
+</script>
+{% endblock %}
+

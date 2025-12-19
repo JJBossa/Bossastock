@@ -6,6 +6,7 @@ from django.db.models import Q, Sum, Count, Avg, F
 from django.http import HttpResponse, JsonResponse
 from django.core.paginator import Paginator
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 from datetime import timedelta
 import csv
 import io
@@ -80,6 +81,27 @@ def dashboard(request):
     }
     
     return render(request, 'inventario/dashboard.html', context)
+
+
+@login_required
+@require_POST
+def guardar_orden_dashboard(request):
+    """Guarda el orden de los widgets del dashboard"""
+    try:
+        data = json.loads(request.body)
+        orden = data.get('orden', [])
+        
+        # Guardar en perfil de usuario o en sesión
+        if hasattr(request.user, 'userprofile'):
+            request.user.userprofile.dashboard_config = {'orden': orden}
+            request.user.userprofile.save()
+        else:
+            # Guardar en sesión como fallback
+            request.session['dashboard_widgets_order'] = orden
+        
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
 
 @login_required
 def detalle_producto(request, producto_id):

@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block title %}Exportación Avanzada - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item active">Exportación Avanzada</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-download text-primary"></i> Exportación Avanzada</h2>
+    <a href="{% url 'inicio' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Volver al Inicio
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-gear"></i> Configurar Exportación</h5>
+    </div>
+    <div class="card-body">
+        <form id="form-exportacion" method="get" action="{% url 'exportar_datos_avanzado' %}">
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label for="tipo" class="form-label">Tipo de Datos:</label>
+                    <select name="tipo" id="tipo" class="form-select" required>
+                        <option value="productos">Productos</option>
+                        <option value="ventas">Ventas</option>
+                        <option value="clientes">Clientes</option>
+                        <option value="proveedores">Proveedores</option>
+                        <option value="ordenes_compra">Órdenes de Compra</option>
+                        <option value="facturas">Facturas</option>
+                        <option value="logs">Logs de Auditoría</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="formato" class="form-label">Formato:</label>
+                    <select name="formato" id="formato" class="form-select" required>
+                        <option value="excel">Excel (XLSX)</option>
+                        <option value="pdf">PDF</option>
+                        <option value="csv">CSV</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label for="fecha_desde" class="form-label">Fecha Desde:</label>
+                    <input type="date" name="fecha_desde" id="fecha_desde" class="form-control">
+                </div>
+                <div class="col-md-6">
+                    <label for="fecha_hasta" class="form-label">Fecha Hasta:</label>
+                    <input type="date" name="fecha_hasta" id="fecha_hasta" class="form-control">
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="incluir_inactivos" id="incluir_inactivos">
+                    <label class="form-check-label" for="incluir_inactivos">
+                        Incluir registros inactivos
+                    </label>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-download"></i> Generar Exportación
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="alert alert-info mt-4">
+    <i class="bi bi-info-circle"></i>
+    <strong>Nota:</strong> Las exportaciones se generan en tiempo real. Para grandes volúmenes de datos, el proceso puede tardar unos momentos.
+</div>
+{% endblock %}
+

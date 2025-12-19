@@ -14,6 +14,9 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-receipt text-primary"></i> Venta {{ venta.numero_venta }}</h2>
     <div>
+        <a href="{% url 'inicio' %}" class="btn btn-secondary me-2">
+            <i class="bi bi-arrow-left"></i> Volver al Inicio
+        </a>
         {% if not venta.cancelada %}
         <div class="btn-group me-2" role="group">
             <a href="{% url 'imprimir_ticket_venta' venta.id %}?tipo=termica" class="btn btn-primary" target="_blank" title="Impresora Térmica 58mm">
@@ -28,6 +31,11 @@
             <i class="bi bi-x-circle"></i> Cancelar Venta
         </button>
         {% endif %}
+        {% endif %}
+        {% if es_admin and not venta.cancelada %}
+        <a href="{% url 'crear_devolucion_venta' venta.id %}" class="btn btn-danger me-2">
+            <i class="bi bi-arrow-counterclockwise"></i> Crear Devolución
+        </a>
         {% endif %}
         <a href="{% url 'listar_ventas' %}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Volver

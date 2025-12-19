@@ -123,6 +123,28 @@
             </div>
         </div>
         
+        <!-- Historial de Precios -->
+        {% if es_admin %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Historial de Precios</h5>
+            </div>
+            <div class="card-body">
+                <a href="{% url 'historial_precios_producto' producto.id %}" class="btn btn-primary">
+                    <i class="bi bi-clock-history"></i> Ver Historial Completo de Precios
+                </a>
+                {% if producto.historial_precios.exists %}
+                <div class="mt-3">
+                    <small class="text-muted">
+                        Último cambio: {{ producto.historial_precios.first.fecha|date:"d/m/Y H:i" }} 
+                        ({{ producto.historial_precios.count }} cambio{{ producto.historial_precios.count|pluralize }} registrado{{ producto.historial_precios.count|pluralize }})
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
         <!-- Historial de cambios -->
         {% if historial %}
         <div class="card mt-4">

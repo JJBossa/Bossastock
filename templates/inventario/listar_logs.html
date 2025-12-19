@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+
+{% block title %}Logs de Auditoría - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item active">Logs de Auditoría</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-journal-text text-warning"></i> Logs de Auditoría</h2>
+    <div>
+        <a href="{% url 'exportar_logs' %}" class="btn btn-primary me-2">
+            <i class="bi bi-download"></i> Exportar CSV
+        </a>
+        <a href="{% url 'inicio' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Inicio
+        </a>
+    </div>
+</div>
+
+<!-- Estadísticas -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h5>Total Logs</h5>
+                <h3>{{ total_logs }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5>Hoy</h5>
+                <h3>{{ logs_hoy }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5>Última Semana</h5>
+                <h3>{{ logs_semana }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Módulo</label>
+                <select name="modulo" class="form-select">
+                    <option value="">Todos</option>
+                    {% for value, label in modulos %}
+                    <option value="{{ value }}" {% if filtros.modulo == value %}selected{% endif %}>{{ label }}</option>
+                    {% empty %}
+                    <option value="producto">Producto</option>
+                    <option value="cliente">Cliente</option>
+                    <option value="venta">Venta</option>
+                    <option value="cotizacion">Cotización</option>
+                    <option value="factura">Factura</option>
+                    <option value="proveedor">Proveedor</option>
+                    <option value="almacen">Almacén</option>
+                    <option value="compra">Compra</option>
+                    <option value="usuario">Usuario</option>
+                    <option value="sistema">Sistema</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Tipo de Acción</label>
+                <select name="tipo_accion" class="form-select">
+                    <option value="">Todos</option>
+                    {% for value, label in tipos_accion %}
+                    <option value="{{ value }}" {% if filtros.tipo_accion == value %}selected{% endif %}>{{ label }}</option>
+                    {% empty %}
+                    <option value="crear">Crear</option>
+                    <option value="editar">Editar</option>
+                    <option value="eliminar">Eliminar</option>
+                    <option value="ver">Ver</option>
+                    <option value="exportar">Exportar</option>
+                    <option value="imprimir">Imprimir</option>
+                    <option value="login">Iniciar Sesión</option>
+                    <option value="logout">Cerrar Sesión</option>
+                    <option value="buscar">Buscar</option>
+                    <option value="otro">Otro</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Desde</label>
+                <input type="date" name="fecha_desde" class="form-control" value="{{ filtros.fecha_desde }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Hasta</label>
+                <input type="date" name="fecha_hasta" class="form-control" value="{{ filtros.fecha_hasta }}">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Filtrar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla de Logs -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Usuario</th>
+                        <th>Tipo</th>
+                        <th>Módulo</th>
+                        <th>Descripción</th>
+                        <th>IP</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in page_obj %}
+                    <tr>
+                        <td>{{ log.fecha|date:"d/m/Y H:i" }}</td>
+                        <td>{{ log.usuario.username|default:"Sistema" }}</td>
+                        <td><span class="badge bg-secondary">{{ log.get_tipo_accion_display }}</span></td>
+                        <td><span class="badge bg-info">{{ log.get_modulo_display }}</span></td>
+                        <td>{{ log.descripcion|truncatewords:10 }}</td>
+                        <td><small>{{ log.ip_address|default:"-" }}</small></td>
+                        <td>
+                            <a href="{% url 'detalle_log' log.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> Ver
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">No hay logs registrados</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Paginación">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filtros.modulo %}&modulo={{ filtros.modulo }}{% endif %}{% if filtros.tipo_accion %}&tipo_accion={{ filtros.tipo_accion }}{% endif %}">Anterior</a>
+                </li>
+                {% endif %}
+                
+                <li class="page-item active">
+                    <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                </li>
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filtros.modulo %}&modulo={{ filtros.modulo }}{% endif %}{% if filtros.tipo_accion %}&tipo_accion={{ filtros.tipo_accion }}{% endif %}">Siguiente</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

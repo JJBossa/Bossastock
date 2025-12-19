@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
-from django.db.models import Q, F, Sum, Count
+from django.db.models import Q, F, Sum, Count, Case, When, IntegerField
 from django.core.paginator import Paginator
 from django.contrib import messages
 from django.utils import timezone
@@ -10,6 +10,7 @@ from django.http import JsonResponse
 from django.db.models import CharField
 from django.db.models.functions import Lower, Replace
 from django.core.exceptions import ValidationError
+from django.core.cache import cache
 from datetime import timedelta
 from .models import Producto, Categoria, HistorialCambio, ProductoFavorito, MovimientoStock
 from .forms import ProductoForm, CategoriaForm
@@ -47,7 +48,9 @@ def agregar_producto(request):
     if request.method == 'POST':
         form = ProductoForm(request.POST, request.FILES)
         if form.is_valid():
-            producto = form.save()
+            producto = form.save(commit=False)
+            producto._request_user = request.user  # Pasar usuario para señales
+            producto.save()
             registrar_cambio(producto, request.user, 'crear', descripcion=f'Producto creado: {producto.nombre}')
             messages.success(request, f'Producto "{producto.nombre}" agregado exitosamente.')
             return redirect('inicio')
@@ -80,6 +83,7 @@ def editar_producto(request, producto_id):
                     if old_image_path.exists():
                         os.remove(old_image_path)
                     producto.imagen = None
+                    producto._request_user = request.user  # Pasar usuario para señales
                     producto.save()
                     registrar_cambio(producto, request.user, 'editar', 'imagen', 'Imagen eliminada', 'Sin imagen')
                     messages.success(request, 'Imagen eliminada exitosamente.')
@@ -111,7 +115,9 @@ def editar_producto(request, producto_id):
                 except:
                     pass
             
-            producto = form.save()
+            producto = form.save(commit=False)
+            producto._request_user = request.user  # Pasar usuario para señales
+            producto.save()
             messages.success(request, f'Producto "{producto.nombre}" actualizado exitosamente.')
             return redirect('inicio')
     else:
@@ -159,6 +165,7 @@ def eliminar_producto(request, producto_id):
 @login_required
 def inicio(request):
     # Optimización: usar select_related para evitar N+1 queries
+    # NO usar only() aquí porque puede causar problemas con select_related
     productos = Producto.objects.filter(activo=True).select_related('categoria')
     query = request.GET.get('q', '')
     orden = request.GET.get('orden', 'nombre_asc')
@@ -195,50 +202,52 @@ def inicio(request):
     elif con_imagen == '0':
         productos = productos.filter(Q(imagen__isnull=True) | Q(imagen=''))
     
-    # Búsqueda optimizada - usar queries de base de datos en lugar de iteración en memoria
+    # Búsqueda optimizada con normalización (sin tildes)
     if query:
         query_normalizado = normalizar_texto(query)
         
-        # Búsqueda directa en DB (mucho más rápida que iterar en memoria)
-        # Buscar en nombre, SKU y descripción
+        # Primero intentar búsqueda directa en DB (muy rápida)
         q_objects = Q()
-        
-        # Para búsqueda insensible a tildes, necesitamos una estrategia híbrida
-        # Primero intentar búsqueda directa (rápida)
         q_objects |= Q(nombre__icontains=query)
         q_objects |= Q(sku__icontains=query)
         q_objects |= Q(descripcion__icontains=query)
         
-        # Si la búsqueda contiene caracteres con tilde, también buscar sin tilde
-        # Ejemplo: buscar "cafe" también encuentra "café"
         productos_filtrados = productos.filter(q_objects)
         
-        # Si no hay resultados con búsqueda directa, intentar búsqueda normalizada
-        # Solo si la búsqueda directa no dio resultados
-        if not productos_filtrados.exists() and query != query_normalizado:
-            # Búsqueda adicional normalizada (más lenta, solo si es necesario)
-            productos_ids = []
-            productos_temp = productos.only('id', 'nombre', 'sku', 'descripcion')
-            
-            for producto in productos_temp:
-                nombre_norm = normalizar_texto(producto.nombre)
-                sku_norm = normalizar_texto(producto.sku or '')
-                descripcion_norm = normalizar_texto(producto.descripcion or '')
-                
-                if (query_normalizado in nombre_norm or 
-                    query_normalizado in sku_norm or 
-                    query_normalizado in descripcion_norm):
-                    productos_ids.append(producto.id)
+        # Si no hay resultados y la query normalizada es diferente, buscar normalizado
+        # PERO solo en los primeros 100 productos para no iterar sobre todos
+        # Optimización: verificar existencia sin evaluar el queryset completo
+        # Usar values_list con limit para ser más eficiente
+        tiene_resultados = productos_filtrados.values_list('id', flat=True)[:1].exists()
+        if not tiene_resultados and query != query_normalizado:
+            # Búsqueda normalizada: solo en los primeros 100 productos (no todos)
+            productos_ids = list(
+                productos.values_list('id', flat=True)[:100]  # Solo primeros 100
+            )
             
             if productos_ids:
-                productos = productos.filter(id__in=productos_ids)
+                # Cargar solo campos necesarios en memoria (máximo 100)
+                productos_temp = Producto.objects.filter(id__in=productos_ids).only('id', 'nombre', 'sku', 'descripcion')
+                productos_ids_match = []
+                
+                for producto in productos_temp:
+                    nombre_norm = normalizar_texto(producto.nombre)
+                    sku_norm = normalizar_texto(producto.sku or '')
+                    descripcion_norm = normalizar_texto(producto.descripcion or '')
+                    
+                    if (query_normalizado in nombre_norm or 
+                        query_normalizado in sku_norm or 
+                        query_normalizado in descripcion_norm):
+                        productos_ids_match.append(producto.id)
+                
+                if productos_ids_match:
+                    productos = productos.filter(id__in=productos_ids_match)
+                else:
+                    productos = productos.none()
             else:
                 productos = productos.none()
         else:
             productos = productos_filtrados
-        
-        logger.info(f'Búsqueda realizada: "{query}" - {productos.count()} resultados', 
-                   extra={'user': request.user.username})
     
     # Ordenamiento
     if orden == 'nombre_asc':
@@ -256,26 +265,70 @@ def inicio(request):
     elif orden == 'fecha_desc':
         productos = productos.order_by('-fecha_creacion')
     
-    # Paginación
+    # Paginación - IMPORTANTE: No evaluar el queryset antes de paginar
     paginator = Paginator(productos, 24)  # 24 productos por página
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    # Obtener categorías para el filtro (desde caché)
+    # Pre-calcular valores para evitar queries adicionales en el template
+    total_resultados = paginator.count
+    num_pages = paginator.num_pages
+    page_range = list(paginator.page_range)  # Convertir a lista para evitar evaluación en template
+    
+    # Obtener categorías para el filtro (desde caché - optimizado)
+    # OPTIMIZACIÓN: Usar get_categorias_cached directamente, ya está cacheado
     categorias_data = get_categorias_cached()
-    # Convertir a objetos Categoria para compatibilidad con template
-    categorias = Categoria.objects.filter(id__in=[c['id'] for c in categorias_data]).order_by('nombre')
+    categoria_ids = [c['id'] for c in categorias_data]
+    # Solo cargar objetos Categoria si realmente se necesitan en el template
+    # Si el template solo usa categorias_data, no cargar objetos
+    categorias = list(Categoria.objects.filter(id__in=categoria_ids).order_by('nombre')) if categoria_ids else []
     
-    # Estadísticas rápidas
-    total_productos = Producto.objects.filter(activo=True).count()
-    productos_stock_bajo_count = Producto.objects.filter(activo=True, stock__lte=F('stock_minimo')).count()
+    # Estadísticas rápidas - usar agregación en una sola consulta cuando sea posible
+    # OPTIMIZACIÓN: Cachear estas estadísticas si no hay filtros activos
+    # Usar try/except para evitar bloqueos si el cache falla
+    cache_key_stats = 'stats_inicio_global'  # Cache global, no por usuario
+    if not query and not categoria_id and not precio_min and not precio_max and not stock_bajo and not con_imagen:
+        try:
+            stats = cache.get(cache_key_stats, timeout=1)  # Timeout corto para evitar bloqueos
+        except Exception:
+            stats = None
+        if stats is None:
+            # Calcular ambas estadísticas en una sola consulta usando agregación
+            stats_data = Producto.objects.filter(activo=True).aggregate(
+                total=Count('id'),
+                stock_bajo=Count(Case(When(stock__lte=F('stock_minimo'), then=1), output_field=IntegerField()))
+            )
+            stats = {'total': stats_data['total'] or 0, 'stock_bajo': stats_data['stock_bajo'] or 0}
+            try:
+                cache.set(cache_key_stats, stats, 300)  # Cache por 5 minutos
+            except Exception:
+                pass  # Si el cache falla, continuar sin cache
+        total_productos = stats['total']
+        productos_stock_bajo_count = stats['stock_bajo']
+    else:
+        # Si hay filtros, calcular solo lo necesario (sin cache)
+        total_productos = Producto.objects.filter(activo=True).count()
+        productos_stock_bajo_count = Producto.objects.filter(activo=True, stock__lte=F('stock_minimo')).count()
     
-    # Obtener IDs de productos favoritos del usuario
+    # Obtener IDs de productos favoritos del usuario (optimizado - solo IDs, con cache)
+    # OPTIMIZACIÓN: Usar try/except para evitar bloqueos si el cache falla
     favoritos_ids = set()
     if request.user.is_authenticated:
-        favoritos_ids = set(ProductoFavorito.objects.filter(
-            usuario=request.user
-        ).values_list('producto_id', flat=True))
+        cache_key_favoritos = f'favoritos_{request.user.id}'
+        try:
+            favoritos_ids = cache.get(cache_key_favoritos, timeout=1)  # Timeout corto
+        except Exception:
+            favoritos_ids = None
+        if favoritos_ids is None:
+            favoritos_ids = set(ProductoFavorito.objects.filter(
+                usuario=request.user
+            ).values_list('producto_id', flat=True))
+            try:
+                cache.set(cache_key_favoritos, favoritos_ids, 300)  # Cache por 5 minutos
+            except Exception:
+                pass  # Si el cache falla, continuar sin cache
+        else:
+            favoritos_ids = set(favoritos_ids)
     
     context = {
         'productos': page_obj,
@@ -290,6 +343,9 @@ def inicio(request):
         'categorias': categorias,
         'total_productos': total_productos,
         'productos_stock_bajo_count': productos_stock_bajo_count,
+        'total_resultados': total_resultados,  # Pre-calculado para evitar query en template
+        'num_pages': num_pages,  # Pre-calculado para evitar query en template
+        'page_range': page_range,  # Pre-calculado para evitar query en template
         'es_admin': es_admin_bossa(request.user),
         'favoritos_ids': favoritos_ids,  # IDs de productos favoritos
     }
@@ -351,7 +407,9 @@ def actualizar_stock_rapido(request, producto_id):
         
         return JsonResponse({
             'success': True,
-            'stock': producto.stock,
+            'nuevo_stock': nuevo_stock,
+            'stock_anterior': stock_anterior,
+            'stock_minimo': producto.stock_minimo,
             'stock_bajo': producto.stock_bajo,
             'mensaje': f'Stock actualizado: {stock_anterior} → {nuevo_stock}'
         })

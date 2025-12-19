@@ -20,6 +20,11 @@ from . import views_busqueda_global
 from . import views_exportacion_avanzada
 from . import views_logs_auditoria
 from . import views_notificaciones
+from . import views_historial_precios
+from . import views_ajustes
+from . import views_devoluciones
+from . import views_idioma
+from . import views_reportes_programados
 
 urlpatterns = [
     path('', views.inicio, name='inicio'),
@@ -132,5 +137,32 @@ urlpatterns = [
     path('api/notificaciones/', views_notificaciones.obtener_notificaciones_api, name='obtener_notificaciones_api'),
     path('notificaciones/<int:notificacion_id>/marcar-leida/', views_notificaciones.marcar_notificacion_leida, name='marcar_notificacion_leida'),
     path('notificaciones/marcar-todas-leidas/', views_notificaciones.marcar_todas_leidas, name='marcar_todas_leidas'),
+    # Historial de Precios
+    path('historial-precios/', views_historial_precios.historial_precios_general, name='historial_precios_general'),
+    path('producto/<int:producto_id>/historial-precios/', views_historial_precios.historial_precios_producto, name='historial_precios_producto'),
+    # Ajustes de Inventario
+    path('ajustes/', views_ajustes.listar_ajustes, name='listar_ajustes'),
+    path('ajustes/crear/', views_ajustes.crear_ajuste, name='crear_ajuste'),
+    path('ajustes/<int:ajuste_id>/', views_ajustes.detalle_ajuste, name='detalle_ajuste'),
+    path('ajustes/<int:ajuste_id>/aprobar/', views_ajustes.aprobar_ajuste, name='aprobar_ajuste'),
+    path('ajustes/<int:ajuste_id>/rechazar/', views_ajustes.rechazar_ajuste, name='rechazar_ajuste'),
+    # Devoluciones
+    path('devoluciones/', views_devoluciones.listar_devoluciones, name='listar_devoluciones'),
+    path('devoluciones/crear/', views_devoluciones.crear_devolucion, name='crear_devolucion'),
+    path('devoluciones/crear/<int:venta_id>/', views_devoluciones.crear_devolucion, name='crear_devolucion_venta'),
+    path('devoluciones/<int:devolucion_id>/', views_devoluciones.detalle_devolucion, name='detalle_devolucion'),
+    path('devoluciones/<int:devolucion_id>/procesar/', views_devoluciones.procesar_devolucion, name='procesar_devolucion'),
+    path('devoluciones/<int:devolucion_id>/rechazar/', views_devoluciones.rechazar_devolucion, name='rechazar_devolucion'),
+    # Cambio de idioma
+    path('cambiar-idioma/', views_idioma.cambiar_idioma, name='cambiar_idioma'),
+    # Reportes Programados
+    path('reportes-programados/', views_reportes_programados.listar_reportes_programados, name='listar_reportes_programados'),
+    path('reportes-programados/crear/', views_reportes_programados.crear_reporte_programado, name='crear_reporte_programado'),
+    path('reportes-programados/<int:reporte_id>/', views_reportes_programados.detalle_reporte_programado, name='detalle_reporte_programado'),
+    path('reportes-programados/<int:reporte_id>/editar/', views_reportes_programados.editar_reporte_programado, name='editar_reporte_programado'),
+    path('reportes-programados/<int:reporte_id>/eliminar/', views_reportes_programados.eliminar_reporte_programado, name='eliminar_reporte_programado'),
+    path('reportes-programados/<int:reporte_id>/ejecutar/', views_reportes_programados.ejecutar_reporte_ahora, name='ejecutar_reporte_ahora'),
+    # Dashboard
+    path('dashboard/guardar-orden/', views_extra.guardar_orden_dashboard, name='guardar_orden_dashboard'),
 ]
 

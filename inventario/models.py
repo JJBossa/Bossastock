@@ -1,5 +1,5 @@
 from django.db import models
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -8,6 +8,12 @@ from PIL import Image
 import os
 import uuid
 import logging
+from typing import Optional
+
+from .constants import (
+    STOCK_MINIMO_DEFAULT, IMAGEN_MAX_WIDTH, IMAGEN_MAX_HEIGHT,
+    IMAGEN_QUALITY, NOMBRE_PRODUCTO_MAX_LENGTH
+)
 
 logger = logging.getLogger('inventario')
 
@@ -80,7 +86,7 @@ class Producto(models.Model):
         verbose_name="Stock"
     )
     stock_minimo = models.IntegerField(
-        default=10,
+        default=STOCK_MINIMO_DEFAULT,
         validators=[MinValueValidator(0)],
         verbose_name="Stock Mínimo",
         help_text="Alerta cuando el stock esté por debajo de este valor"
@@ -100,6 +106,13 @@ class Producto(models.Model):
         verbose_name = "Producto"
         verbose_name_plural = "Productos"
         ordering = ['nombre']
+        indexes = [
+            models.Index(fields=['nombre']),  # Índice para búsquedas por nombre
+            models.Index(fields=['sku']),  # Índice para búsquedas por SKU
+            models.Index(fields=['activo', 'stock']),  # Índice compuesto para filtros comunes
+            models.Index(fields=['categoria', 'activo']),  # Índice para filtros por categoría
+            models.Index(fields=['activo', '-fecha_creacion']),  # Índice para ordenamiento
+        ]
 
     def __str__(self):
         return f"{self.nombre} - ${self.precio:,}"
@@ -156,13 +169,12 @@ class Producto(models.Model):
                             rgb_img.paste(img)
                         img = rgb_img
                     
-                    # Redimensionar si es muy grande (máximo 800px de ancho o alto)
-                    max_size = 800
-                    if img.width > max_size or img.height > max_size:
-                        img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+                    # Redimensionar si es muy grande (usar constantes)
+                    if img.width > IMAGEN_MAX_WIDTH or img.height > IMAGEN_MAX_HEIGHT:
+                        img.thumbnail((IMAGEN_MAX_WIDTH, IMAGEN_MAX_HEIGHT), Image.Resampling.LANCZOS)
                     
-                    # Guardar optimizada (calidad 85 para balance tamaño/calidad)
-                    img.save(img_path, 'JPEG', quality=85, optimize=True)
+                    # Guardar optimizada (usar constante de calidad)
+                    img.save(img_path, 'JPEG', quality=IMAGEN_QUALITY, optimize=True)
             except Exception as e:
                 # Si hay error en la optimización, no romper el guardado
                 print(f"Error al optimizar imagen: {e}")
@@ -967,3 +979,588 @@ class NotificacionUsuario(models.Model):
     
     def __str__(self):
         return f"{self.titulo} - {self.usuario.username} - {self.fecha}"
+
+
+# ==================== NUEVOS MODELOS PARA MEJORAS ====================
+
+class HistorialPrecio(models.Model):
+    """Modelo para registrar el historial de cambios de precio de productos"""
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='historial_precios', verbose_name="Producto")
+    precio_anterior = models.DecimalField(max_digits=10, decimal_places=0, verbose_name="Precio Anterior")
+    precio_nuevo = models.DecimalField(max_digits=10, decimal_places=0, verbose_name="Precio Nuevo")
+    precio_compra_anterior = models.DecimalField(max_digits=10, decimal_places=0, blank=True, null=True, verbose_name="Precio Compra Anterior")
+    precio_compra_nuevo = models.DecimalField(max_digits=10, decimal_places=0, blank=True, null=True, verbose_name="Precio Compra Nuevo")
+    precio_promo_anterior = models.DecimalField(max_digits=10, decimal_places=0, blank=True, null=True, verbose_name="Precio Promo Anterior")
+    precio_promo_nuevo = models.DecimalField(max_digits=10, decimal_places=0, blank=True, null=True, verbose_name="Precio Promo Nuevo")
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name="Usuario")
+    fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha")
+    motivo = models.CharField(max_length=200, blank=True, null=True, verbose_name="Motivo del Cambio")
+    notas = models.TextField(blank=True, null=True, verbose_name="Notas")
+    
+    class Meta:
+        verbose_name = "Historial de Precio"
+        verbose_name_plural = "Historial de Precios"
+        ordering = ['-fecha']
+        indexes = [
+            models.Index(fields=['producto', '-fecha']),
+            models.Index(fields=['-fecha']),
+        ]
+    
+    def __str__(self):
+        cambio = float(self.precio_nuevo) - float(self.precio_anterior)
+        signo = "+" if cambio >= 0 else ""
+        return f"{self.producto.nombre}: ${self.precio_anterior:,} → ${self.precio_nuevo:,} ({signo}${abs(cambio):,})"
+    
+    @property
+    def diferencia(self):
+        """Calcula la diferencia entre precio nuevo y anterior"""
+        return float(self.precio_nuevo) - float(self.precio_anterior)
+    
+    @property
+    def porcentaje_cambio(self):
+        """Calcula el porcentaje de cambio"""
+        if float(self.precio_anterior) == 0:
+            return 0
+        return ((float(self.precio_nuevo) - float(self.precio_anterior)) / float(self.precio_anterior)) * 100
+
+
+class AjusteInventario(models.Model):
+    """Modelo para ajustes de inventario con aprobación"""
+    ESTADO_CHOICES = [
+        ('pendiente', 'Pendiente'),
+        ('aprobado', 'Aprobado'),
+        ('rechazado', 'Rechazado'),
+    ]
+    
+    TIPO_AJUSTE_CHOICES = [
+        ('incremento', 'Incremento'),
+        ('decremento', 'Decremento'),
+        ('correccion', 'Corrección'),
+    ]
+    
+    numero_ajuste = models.CharField(max_length=50, unique=True, verbose_name="Número de Ajuste")
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='ajustes', verbose_name="Producto")
+    tipo_ajuste = models.CharField(max_length=20, choices=TIPO_AJUSTE_CHOICES, verbose_name="Tipo de Ajuste")
+    cantidad_anterior = models.IntegerField(verbose_name="Cantidad Anterior")
+    cantidad_nueva = models.IntegerField(validators=[MinValueValidator(0)], verbose_name="Cantidad Nueva")
+    diferencia = models.IntegerField(verbose_name="Diferencia", help_text="Cantidad a ajustar (positiva o negativa)")
+    motivo = models.CharField(max_length=200, verbose_name="Motivo del Ajuste")
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente', verbose_name="Estado")
+    solicitado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='ajustes_solicitados', verbose_name="Solicitado por")
+    aprobado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ajustes_aprobados', verbose_name="Aprobado por")
+    fecha_solicitud = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Solicitud")
+    fecha_aprobacion = models.DateTimeField(blank=True, null=True, verbose_name="Fecha de Aprobación")
+    notas = models.TextField(blank=True, null=True, verbose_name="Notas")
+    
+    class Meta:
+        verbose_name = "Ajuste de Inventario"
+        verbose_name_plural = "Ajustes de Inventario"
+        ordering = ['-fecha_solicitud']
+        indexes = [
+            models.Index(fields=['producto', 'estado']),
+            models.Index(fields=['estado', '-fecha_solicitud']),
+        ]
+    
+    def __str__(self):
+        return f"Ajuste #{self.numero_ajuste} - {self.producto.nombre} - {self.get_estado_display()}"
+    
+    def save(self, *args, **kwargs):
+        if not self.numero_ajuste:
+            # Generar número de ajuste automático
+            ultimo_ajuste = AjusteInventario.objects.order_by('-id').first()
+            numero = 1
+            if ultimo_ajuste and ultimo_ajuste.numero_ajuste:
+                try:
+                    numero = int(ultimo_ajuste.numero_ajuste.split('-')[-1]) + 1
+                except:
+                    pass
+            self.numero_ajuste = f"AJ-{numero:06d}"
+        
+        # Calcular diferencia
+        self.diferencia = self.cantidad_nueva - self.cantidad_anterior
+        
+        super().save(*args, **kwargs)
+    
+    def aprobar(self, usuario_aprobador):
+        """Aprueba el ajuste y actualiza el stock"""
+        if self.estado != 'pendiente':
+            raise ValueError('Solo se pueden aprobar ajustes pendientes')
+        
+        from django.utils import timezone
+        from django.db import transaction
+        
+        with transaction.atomic():
+            # Actualizar stock del producto
+            self.producto.stock = self.cantidad_nueva
+            self.producto.save()
+            
+            # Crear movimiento de stock
+            MovimientoStock.objects.create(
+                producto=self.producto,
+                tipo='ajuste',
+                cantidad=abs(self.diferencia),
+                motivo='ajuste_inventario',
+                stock_anterior=self.cantidad_anterior,
+                stock_nuevo=self.cantidad_nueva,
+                usuario=usuario_aprobador,
+                notas=f'Ajuste #{self.numero_ajuste}: {self.motivo}'
+            )
+            
+            # Actualizar estado del ajuste
+            self.estado = 'aprobado'
+            self.aprobado_por = usuario_aprobador
+            self.fecha_aprobacion = timezone.now()
+            self.save()
+    
+    def rechazar(self, usuario_rechazador, motivo_rechazo=None):
+        """Rechaza el ajuste"""
+        if self.estado != 'pendiente':
+            raise ValueError('Solo se pueden rechazar ajustes pendientes')
+        
+        self.estado = 'rechazado'
+        self.aprobado_por = usuario_rechazador
+        if motivo_rechazo:
+            self.notas = f"{self.notas or ''}\nRechazado: {motivo_rechazo}".strip()
+        self.save()
+
+
+class Devolucion(models.Model):
+    """Modelo para devoluciones de ventas"""
+    ESTADO_CHOICES = [
+        ('pendiente', 'Pendiente'),
+        ('procesada', 'Procesada'),
+        ('rechazada', 'Rechazada'),
+    ]
+    
+    TIPO_DEVOLUCION_CHOICES = [
+        ('completa', 'Devolución Completa'),
+        ('parcial', 'Devolución Parcial'),
+    ]
+    
+    numero_devolucion = models.CharField(max_length=50, unique=True, verbose_name="Número de Devolución")
+    venta = models.ForeignKey('Venta', on_delete=models.CASCADE, related_name='devoluciones', verbose_name="Venta")
+    cliente = models.ForeignKey('Cliente', on_delete=models.SET_NULL, null=True, blank=True, related_name='devoluciones', verbose_name="Cliente")
+    tipo_devolucion = models.CharField(max_length=20, choices=TIPO_DEVOLUCION_CHOICES, verbose_name="Tipo de Devolución")
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente', verbose_name="Estado")
+    monto_devolver = models.DecimalField(max_digits=10, decimal_places=0, verbose_name="Monto a Devolver")
+    metodo_reembolso = models.CharField(
+        max_length=20,
+        choices=[
+            ('efectivo', 'Efectivo'),
+            ('tarjeta', 'Tarjeta'),
+            ('transferencia', 'Transferencia'),
+            ('credito', 'Crédito en Cuenta'),
+        ],
+        verbose_name="Método de Reembolso"
+    )
+    motivo = models.CharField(max_length=200, verbose_name="Motivo de la Devolución")
+    procesado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='devoluciones_procesadas', verbose_name="Procesado por")
+    fecha_solicitud = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Solicitud")
+    fecha_procesamiento = models.DateTimeField(blank=True, null=True, verbose_name="Fecha de Procesamiento")
+    notas = models.TextField(blank=True, null=True, verbose_name="Notas")
+    
+    class Meta:
+        verbose_name = "Devolución"
+        verbose_name_plural = "Devoluciones"
+        ordering = ['-fecha_solicitud']
+        indexes = [
+            models.Index(fields=['venta', 'estado']),
+            models.Index(fields=['estado', '-fecha_solicitud']),
+        ]
+    
+    def __str__(self):
+        return f"Devolución #{self.numero_devolucion} - Venta {self.venta.numero_venta}"
+    
+    def save(self, *args, **kwargs):
+        if not self.numero_devolucion:
+            # Generar número de devolución automático
+            ultima_devolucion = Devolucion.objects.order_by('-id').first()
+            numero = 1
+            if ultima_devolucion and ultima_devolucion.numero_devolucion:
+                try:
+                    numero = int(ultima_devolucion.numero_devolucion.split('-')[-1]) + 1
+                except:
+                    pass
+            self.numero_devolucion = f"DEV-{numero:06d}"
+        
+        super().save(*args, **kwargs)
+    
+    def procesar(self, usuario_procesador):
+        """Procesa la devolución: actualiza stock y maneja reembolso"""
+        if self.estado != 'pendiente':
+            raise ValueError('Solo se pueden procesar devoluciones pendientes')
+        
+        from django.utils import timezone
+        from django.db import transaction
+        
+        with transaction.atomic():
+            # Obtener items de la devolución (no todos los de la venta)
+            items_devolucion = self.items.all()
+            
+            # Actualizar stock de productos devueltos
+            for item_devolucion in items_devolucion:
+                producto = item_devolucion.item_venta.producto
+                stock_anterior = producto.stock
+                producto.stock += item_devolucion.cantidad
+                producto.save()
+                
+                # Crear movimiento de stock
+                MovimientoStock.objects.create(
+                    producto=producto,
+                    tipo='devolucion',
+                    cantidad=item_devolucion.cantidad,
+                    motivo='devolucion_cliente',
+                    stock_anterior=stock_anterior,
+                    stock_nuevo=producto.stock,
+                    usuario=usuario_procesador,
+                    notas=f'Devolución #{self.numero_devolucion} de venta {self.venta.numero_venta}'
+                )
+            
+            # Si es crédito en cuenta, actualizar cuenta por cobrar
+            if self.metodo_reembolso == 'credito' and self.cliente:
+                from .models import CuentaPorCobrar
+                # Reducir el monto de la cuenta por cobrar
+                cuentas = CuentaPorCobrar.objects.filter(
+                    cliente=self.cliente,
+                    venta=self.venta,
+                    estado__in=['pendiente', 'parcial']
+                )
+                for cuenta in cuentas:
+                    cuenta.monto_pagado += self.monto_devolver
+                    if cuenta.monto_pagado >= cuenta.monto_total:
+                        cuenta.estado = 'pagada'
+                    else:
+                        cuenta.estado = 'parcial'
+                    cuenta.save()
+            
+            # Actualizar estado de la devolución
+            self.estado = 'procesada'
+            self.procesado_por = usuario_procesador
+            self.fecha_procesamiento = timezone.now()
+            self.save()
+    
+    def rechazar(self, usuario_rechazador, motivo_rechazo=None):
+        """Rechaza la devolución"""
+        if self.estado != 'pendiente':
+            raise ValueError('Solo se pueden rechazar devoluciones pendientes')
+        
+        self.estado = 'rechazada'
+        self.procesado_por = usuario_rechazador
+        if motivo_rechazo:
+            self.notas = f"{self.notas or ''}\nRechazada: {motivo_rechazo}".strip()
+        self.save()
+
+
+class ItemDevolucion(models.Model):
+    """Items específicos de una devolución"""
+    devolucion = models.ForeignKey(Devolucion, on_delete=models.CASCADE, related_name='items', verbose_name="Devolución")
+    item_venta = models.ForeignKey('ItemVenta', on_delete=models.CASCADE, verbose_name="Item de Venta")
+    cantidad = models.IntegerField(validators=[MinValueValidator(1)], verbose_name="Cantidad a Devolver")
+    motivo = models.CharField(max_length=200, blank=True, null=True, verbose_name="Motivo Específico")
+    
+    class Meta:
+        verbose_name = "Item de Devolución"
+        verbose_name_plural = "Items de Devolución"
+    
+    def __str__(self):
+        return f"{self.item_venta.producto.nombre} - {self.cantidad} unidades"
+
+
+class ReporteProgramado(models.Model):
+    """Modelo para reportes programados por email"""
+    FRECUENCIA_CHOICES = [
+        ('diario', 'Diario'),
+        ('semanal', 'Semanal'),
+        ('mensual', 'Mensual'),
+        ('personalizado', 'Personalizado'),
+    ]
+    
+    TIPO_REPORTE_CHOICES = [
+        ('ventas', 'Reporte de Ventas'),
+        ('inventario', 'Reporte de Inventario'),
+        ('stock_bajo', 'Productos con Stock Bajo'),
+        ('cuentas_cobrar', 'Cuentas por Cobrar'),
+        ('completo', 'Reporte Completo'),
+    ]
+    
+    FORMATO_CHOICES = [
+        ('pdf', 'PDF'),
+        ('excel', 'Excel'),
+        ('csv', 'CSV'),
+    ]
+    
+    nombre = models.CharField(max_length=200, verbose_name="Nombre del Reporte")
+    tipo_reporte = models.CharField(max_length=50, choices=TIPO_REPORTE_CHOICES, verbose_name="Tipo de Reporte")
+    formato = models.CharField(max_length=10, choices=FORMATO_CHOICES, default='pdf', verbose_name="Formato")
+    frecuencia = models.CharField(max_length=20, choices=FRECUENCIA_CHOICES, verbose_name="Frecuencia")
+    dia_semana = models.IntegerField(blank=True, null=True, verbose_name="Día de la Semana", help_text="0=Lunes, 6=Domingo (solo para semanal)")
+    dia_mes = models.IntegerField(blank=True, null=True, verbose_name="Día del Mes", help_text="1-31 (solo para mensual)")
+    hora_envio = models.TimeField(verbose_name="Hora de Envío", default='09:00')
+    destinatarios = models.TextField(verbose_name="Destinatarios", help_text="Emails separados por comas")
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+    creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='reportes_programados', verbose_name="Creado por")
+    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creación")
+    ultimo_envio = models.DateTimeField(blank=True, null=True, verbose_name="Último Envío")
+    proximo_envio = models.DateTimeField(blank=True, null=True, verbose_name="Próximo Envío")
+    parametros = models.JSONField(blank=True, null=True, verbose_name="Parámetros Adicionales", help_text="Filtros, rangos de fechas, etc.")
+    
+    class Meta:
+        verbose_name = "Reporte Programado"
+        verbose_name_plural = "Reportes Programados"
+        ordering = ['nombre']
+        indexes = [
+            models.Index(fields=['activo', 'proximo_envio']),
+        ]
+    
+    def __str__(self):
+        return f"{self.nombre} - {self.get_frecuencia_display()}"
+    
+    def calcular_proximo_envio(self):
+        """Calcula la próxima fecha de envío basada en la frecuencia"""
+        from django.utils import timezone
+        from datetime import timedelta
+        import calendar
+        
+        ahora = timezone.now()
+        fecha_base = ahora.date()
+        hora = self.hora_envio
+        
+        if self.frecuencia == 'diario':
+            # Mañana a la hora especificada
+            proximo = timezone.make_aware(timezone.datetime.combine(fecha_base + timedelta(days=1), hora))
+        elif self.frecuencia == 'semanal':
+            # Próximo día de la semana especificado
+            dia_actual = ahora.weekday()
+            dia_objetivo = self.dia_semana if self.dia_semana is not None else 0
+            dias_restantes = (dia_objetivo - dia_actual) % 7
+            if dias_restantes == 0:
+                dias_restantes = 7  # Si es hoy, programar para la próxima semana
+            proximo = timezone.make_aware(timezone.datetime.combine(fecha_base + timedelta(days=dias_restantes), hora))
+        elif self.frecuencia == 'mensual':
+            # Día del mes especificado
+            dia_objetivo = self.dia_mes if self.dia_mes is not None else 1
+            # Si el día ya pasó este mes, programar para el próximo mes
+            if fecha_base.day >= dia_objetivo:
+                # Próximo mes
+                if fecha_base.month == 12:
+                    proximo_mes = fecha_base.replace(year=fecha_base.year + 1, month=1, day=dia_objetivo)
+                else:
+                    proximo_mes = fecha_base.replace(month=fecha_base.month + 1, day=dia_objetivo)
+            else:
+                # Este mes
+                proximo_mes = fecha_base.replace(day=dia_objetivo)
+            proximo = timezone.make_aware(timezone.datetime.combine(proximo_mes, hora))
+        else:
+            # Personalizado - usar próximo_envio manual
+            proximo = self.proximo_envio or ahora + timedelta(days=1)
+        
+        return proximo
+    
+    def save(self, *args, **kwargs):
+        if not self.proximo_envio:
+            self.proximo_envio = self.calcular_proximo_envio()
+        super().save(*args, **kwargs)
+
+
+# ========== MODELOS PARA CONTROL DE LOTES/SERIES ==========
+
+class Lote(models.Model):
+    """
+    Modelo para control de lotes y series de productos
+    Útil para productos perecederos o con trazabilidad
+    """
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='lotes', verbose_name="Producto")
+    numero_lote = models.CharField(max_length=100, verbose_name="Número de Lote/Serie", help_text="Código único del lote")
+    fecha_fabricacion = models.DateField(blank=True, null=True, verbose_name="Fecha de Fabricación")
+    fecha_vencimiento = models.DateField(blank=True, null=True, verbose_name="Fecha de Vencimiento")
+    cantidad_inicial = models.IntegerField(default=0, verbose_name="Cantidad Inicial")
+    cantidad_actual = models.IntegerField(default=0, verbose_name="Cantidad Actual")
+    almacen = models.ForeignKey('Almacen', on_delete=models.SET_NULL, null=True, blank=True, related_name='lotes', verbose_name="Almacén")
+    ubicacion = models.CharField(max_length=200, blank=True, null=True, verbose_name="Ubicación", help_text="Ubicación específica dentro del almacén")
+    proveedor = models.ForeignKey('Proveedor', on_delete=models.SET_NULL, null=True, blank=True, related_name='lotes', verbose_name="Proveedor")
+    fecha_recepcion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Recepción")
+    notas = models.TextField(blank=True, null=True, verbose_name="Notas")
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+    
+    class Meta:
+        verbose_name = "Lote"
+        verbose_name_plural = "Lotes"
+        ordering = ['-fecha_recepcion']
+        unique_together = [['producto', 'numero_lote']]  # Un lote único por producto
+        indexes = [
+            models.Index(fields=['producto', 'numero_lote']),
+            models.Index(fields=['fecha_vencimiento']),
+            models.Index(fields=['activo']),
+        ]
+    
+    def __str__(self):
+        return f"Lote {self.numero_lote} - {self.producto.nombre} ({self.cantidad_actual}/{self.cantidad_inicial})"
+    
+    @property
+    def esta_vencido(self):
+        """Verifica si el lote está vencido"""
+        if not self.fecha_vencimiento:
+            return False
+        from django.utils import timezone
+        return timezone.now().date() > self.fecha_vencimiento
+    
+    @property
+    def dias_para_vencer(self):
+        """Calcula días restantes para vencer"""
+        if not self.fecha_vencimiento:
+            return None
+        from django.utils import timezone
+        delta = self.fecha_vencimiento - timezone.now().date()
+        return delta.days
+    
+    @property
+    def porcentaje_disponible(self):
+        """Calcula el porcentaje de stock disponible"""
+        if self.cantidad_inicial == 0:
+            return 0
+        return (self.cantidad_actual / self.cantidad_inicial) * 100
+
+
+class MovimientoLote(models.Model):
+    """
+    Registra movimientos de stock por lote
+    """
+    TIPO_CHOICES = [
+        ('entrada', 'Entrada'),
+        ('salida', 'Salida'),
+        ('ajuste', 'Ajuste'),
+        ('transferencia', 'Transferencia'),
+    ]
+    
+    lote = models.ForeignKey(Lote, on_delete=models.CASCADE, related_name='movimientos', verbose_name="Lote")
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, verbose_name="Tipo de Movimiento")
+    cantidad = models.IntegerField(verbose_name="Cantidad")
+    motivo = models.CharField(max_length=200, blank=True, null=True, verbose_name="Motivo")
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name="Usuario")
+    venta = models.ForeignKey('Venta', on_delete=models.SET_NULL, null=True, blank=True, related_name='movimientos_lote', verbose_name="Venta")
+    ajuste = models.ForeignKey('AjusteInventario', on_delete=models.SET_NULL, null=True, blank=True, related_name='movimientos_lote', verbose_name="Ajuste")
+    fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha")
+    notas = models.TextField(blank=True, null=True, verbose_name="Notas")
+    
+    class Meta:
+        verbose_name = "Movimiento de Lote"
+        verbose_name_plural = "Movimientos de Lotes"
+        ordering = ['-fecha']
+        indexes = [
+            models.Index(fields=['lote', '-fecha']),
+            models.Index(fields=['tipo']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_tipo_display()} - Lote {self.lote.numero_lote} - {self.cantidad} unidades"
+
+
+# ========== MODELOS PARA MULTI-MONEDA ==========
+
+class Moneda(models.Model):
+    """
+    Modelo para gestionar múltiples monedas
+    """
+    codigo = models.CharField(max_length=3, unique=True, verbose_name="Código", help_text="Código ISO (ej: USD, CLP, EUR)")
+    nombre = models.CharField(max_length=100, verbose_name="Nombre", help_text="Nombre completo de la moneda")
+    simbolo = models.CharField(max_length=10, verbose_name="Símbolo", help_text="Símbolo de la moneda (ej: $, €, £)")
+    tasa_cambio = models.DecimalField(max_digits=12, decimal_places=4, default=1.0, verbose_name="Tasa de Cambio", help_text="Tasa respecto a la moneda base")
+    es_base = models.BooleanField(default=False, verbose_name="Moneda Base", help_text="Moneda base del sistema")
+    activa = models.BooleanField(default=True, verbose_name="Activa")
+    fecha_actualizacion = models.DateTimeField(auto_now=True, verbose_name="Fecha de Actualización")
+    
+    class Meta:
+        verbose_name = "Moneda"
+        verbose_name_plural = "Monedas"
+        ordering = ['codigo']
+        indexes = [
+            models.Index(fields=['codigo']),
+            models.Index(fields=['activa']),
+        ]
+    
+    def __str__(self):
+        return f"{self.codigo} - {self.nombre}"
+    
+    def save(self, *args, **kwargs):
+        # Si se marca como base, desmarcar las demás
+        if self.es_base:
+            Moneda.objects.filter(es_base=True).exclude(pk=self.pk).update(es_base=False)
+        super().save(*args, **kwargs)
+    
+    def convertir_a_moneda_base(self, monto):
+        """Convierte un monto a la moneda base"""
+        if self.es_base:
+            return monto
+        return monto * self.tasa_cambio
+    
+    def convertir_desde_moneda_base(self, monto):
+        """Convierte un monto desde la moneda base"""
+        if self.es_base:
+            return monto
+        if self.tasa_cambio == 0:
+            return 0
+        return monto / self.tasa_cambio
+
+
+class CambioMoneda(models.Model):
+    """
+    Historial de cambios de tasa de cambio
+    """
+    moneda = models.ForeignKey(Moneda, on_delete=models.CASCADE, related_name='cambios', verbose_name="Moneda")
+    tasa_anterior = models.DecimalField(max_digits=12, decimal_places=4, verbose_name="Tasa Anterior")
+    tasa_nueva = models.DecimalField(max_digits=12, decimal_places=4, verbose_name="Tasa Nueva")
+    fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Cambio")
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name="Usuario")
+    motivo = models.CharField(max_length=200, blank=True, null=True, verbose_name="Motivo")
+    
+    class Meta:
+        verbose_name = "Cambio de Moneda"
+        verbose_name_plural = "Cambios de Moneda"
+        ordering = ['-fecha']
+        indexes = [
+            models.Index(fields=['moneda', '-fecha']),
+        ]
+    
+    def __str__(self):
+        return f"{self.moneda.codigo} - {self.tasa_anterior} → {self.tasa_nueva}"
+
+
+# ========== MODELO PARA DASHBOARD PERSONALIZABLE ==========
+
+class WidgetDashboard(models.Model):
+    """
+    Widgets personalizables para el dashboard
+    """
+    TIPO_CHOICES = [
+        ('estadisticas', 'Estadísticas Generales'),
+        ('productos_stock_bajo', 'Productos Stock Bajo'),
+        ('ventas_recientes', 'Ventas Recientes'),
+        ('grafico_ventas', 'Gráfico de Ventas'),
+        ('grafico_productos', 'Gráfico de Productos'),
+        ('notificaciones', 'Notificaciones'),
+        ('calendario', 'Calendario'),
+    ]
+    
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='widgets_dashboard', verbose_name="Usuario")
+    tipo = models.CharField(max_length=50, choices=TIPO_CHOICES, verbose_name="Tipo de Widget")
+    titulo = models.CharField(max_length=200, verbose_name="Título")
+    posicion_x = models.IntegerField(default=0, verbose_name="Posición X")
+    posicion_y = models.IntegerField(default=0, verbose_name="Posición Y")
+    ancho = models.IntegerField(default=4, verbose_name="Ancho", help_text="Columnas (1-12)")
+    alto = models.IntegerField(default=3, verbose_name="Alto", help_text="Filas")
+    visible = models.BooleanField(default=True, verbose_name="Visible")
+    configuracion = models.JSONField(default=dict, blank=True, verbose_name="Configuración", help_text="Configuración adicional del widget en formato JSON")
+    orden = models.IntegerField(default=0, verbose_name="Orden")
+    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creación")
+    fecha_actualizacion = models.DateTimeField(auto_now=True, verbose_name="Fecha de Actualización")
+    
+    class Meta:
+        verbose_name = "Widget de Dashboard"
+        verbose_name_plural = "Widgets de Dashboard"
+        ordering = ['usuario', 'orden', 'posicion_y', 'posicion_x']
+        indexes = [
+            models.Index(fields=['usuario', 'visible']),
+        ]
+    
+    def __str__(self):
+        return f"{self.usuario.username} - {self.get_tipo_display()}"

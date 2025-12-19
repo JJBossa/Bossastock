@@ -1,6 +1,13 @@
 from django import forms
 from django.core.exceptions import ValidationError
+from typing import Optional
 from .models import Producto, Categoria
+from .validators import (
+    validate_precio_positivo, validate_stock_positivo,
+    validate_nombre_producto, validate_precio_promo_menor_precio,
+    validate_precio_compra_menor_precio, validate_sku_unico
+)
+from .constants import PRECIO_MINIMO, PRECIO_MAXIMO
 
 class ProductoForm(forms.ModelForm):
     class Meta:
@@ -100,44 +107,88 @@ class ProductoForm(forms.ModelForm):
         self.fields['precio_promo'].required = False
         self.fields['categoria'].queryset = Categoria.objects.all().order_by('nombre')
     
-    def clean_precio_compra(self):
+    def clean_precio_compra(self) -> Optional[float]:
+        """Valida el precio de compra"""
         precio_compra = self.cleaned_data.get('precio_compra')
-        if precio_compra is not None and precio_compra < 0:
-            raise ValidationError('El precio de compra no puede ser negativo.')
+        if precio_compra is not None:
+            validate_precio_positivo(precio_compra)
         return precio_compra
     
-    def clean_precio(self):
+    def clean_precio(self) -> float:
+        """Valida el precio de venta"""
         precio = self.cleaned_data.get('precio')
         precio_compra = self.cleaned_data.get('precio_compra')
-        if precio is not None and precio < 0:
-            raise ValidationError('El precio de venta no puede ser negativo. Ingresa un valor mayor o igual a 0.')
-        if precio is not None and precio == 0:
-            raise ValidationError('El precio de venta debe ser mayor a 0. Si el producto es gratuito, ingresa 1.')
-        if precio_compra and precio and precio < precio_compra:
-            raise ValidationError('El precio de venta no puede ser menor al precio de compra. Revisa los valores.')
+        
+        if precio is not None:
+            validate_precio_positivo(precio)
+            if precio == 0:
+                raise ValidationError('El precio de venta debe ser mayor a 0. Si el producto es gratuito, ingresa 1.')
+            if precio_compra:
+                validate_precio_compra_menor_precio(precio_compra, precio)
+        
         return precio
     
-    def clean_stock(self):
+    def clean_precio_promo(self) -> Optional[float]:
+        """Valida el precio promocional"""
+        precio_promo = self.cleaned_data.get('precio_promo')
+        precio = self.cleaned_data.get('precio')
+        
+        if precio_promo is not None:
+            validate_precio_positivo(precio_promo)
+            if precio:
+                validate_precio_promo_menor_precio(precio_promo, precio)
+        
+        return precio_promo
+    
+    def clean_stock(self) -> int:
+        """Valida el stock"""
         stock = self.cleaned_data.get('stock')
-        if stock is not None and stock < 0:
-            raise ValidationError('El stock no puede ser negativo. Ingresa 0 o un número positivo.')
-        return stock
+        if stock is not None:
+            validate_stock_positivo(stock)
+        return stock or 0
     
-    def clean_stock_minimo(self):
+    def clean_stock_minimo(self) -> int:
+        """Valida el stock mínimo"""
         stock_minimo = self.cleaned_data.get('stock_minimo')
-        if stock_minimo is not None and stock_minimo < 0:
-            raise ValidationError('El stock mínimo no puede ser negativo. Ingresa 0 o un número positivo.')
-        return stock_minimo
+        if stock_minimo is not None:
+            validate_stock_positivo(stock_minimo)
+        return stock_minimo or 0
     
-    def clean_nombre(self):
+    def clean_nombre(self) -> str:
+        """Valida el nombre del producto"""
         nombre = self.cleaned_data.get('nombre')
         if nombre:
+            validate_nombre_producto(nombre)
             nombre = nombre.strip()
-            if len(nombre) < 2:
-                raise ValidationError('El nombre del producto debe tener al menos 2 caracteres.')
-            if len(nombre) > 200:
-                raise ValidationError('El nombre del producto es demasiado largo. Máximo 200 caracteres.')
         return nombre
+    
+    def clean_sku(self) -> Optional[str]:
+        """Valida el SKU"""
+        sku = self.cleaned_data.get('sku')
+        if sku:
+            sku = sku.strip().upper()
+            validate_sku_unico(sku, self.instance)
+        return sku
+    
+    def clean(self) -> dict:
+        """Validación cruzada de campos"""
+        cleaned_data = super().clean()
+        precio_compra = cleaned_data.get('precio_compra')
+        precio = cleaned_data.get('precio')
+        precio_promo = cleaned_data.get('precio_promo')
+        
+        # Validar relaciones entre precios
+        if precio_compra and precio and precio_compra >= precio:
+            raise ValidationError({
+                'precio_compra': 'El precio de compra debe ser menor al precio de venta para tener ganancia.'
+            })
+        
+        if precio_promo and precio and precio_promo >= precio:
+            raise ValidationError({
+                'precio_promo': 'El precio promocional debe ser menor al precio de venta.'
+            })
+        
+        return cleaned_data
 
 class CategoriaForm(forms.ModelForm):
     class Meta:

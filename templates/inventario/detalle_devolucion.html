@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+
+{% block title %}Devolución {{ devolucion.numero_devolucion }} - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'listar_devoluciones' %}">Devoluciones</a></li>
+        <li class="breadcrumb-item active">{{ devolucion.numero_devolucion }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-arrow-counterclockwise text-danger"></i> Devolución {{ devolucion.numero_devolucion }}</h2>
+    <div class="d-flex gap-2">
+        <a href="{% url 'inicio' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Volver al Inicio
+        </a>
+        <a href="{% url 'listar_devoluciones' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Información de la Devolución</h5>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <tr>
+                        <th width="200">Número:</th>
+                        <td><strong>{{ devolucion.numero_devolucion }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Venta:</th>
+                        <td>
+                            <a href="{% url 'detalle_venta' devolucion.venta.id %}">{{ devolucion.venta.numero_venta }}</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Cliente:</th>
+                        <td>{{ devolucion.cliente.nombre|default:"Cliente General" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Tipo de Devolución:</th>
+                        <td><span class="badge bg-secondary">{{ devolucion.get_tipo_devolucion_display }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Monto a Devolver:</th>
+                        <td><strong class="text-danger">${{ devolucion.monto_devolver|floatformat:0 }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Método de Reembolso:</th>
+                        <td>{{ devolucion.get_metodo_reembolso_display }}</td>
+                    </tr>
+                    <tr>
+                        <th>Estado:</th>
+                        <td>
+                            {% if devolucion.estado == 'pendiente' %}
+                            <span class="badge bg-warning">Pendiente</span>
+                            {% elif devolucion.estado == 'procesada' %}
+                            <span class="badge bg-success">Procesada</span>
+                            {% elif devolucion.estado == 'rechazada' %}
+                            <span class="badge bg-danger">Rechazada</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Motivo:</th>
+                        <td>{{ devolucion.motivo }}</td>
+                    </tr>
+                    <tr>
+                        <th>Fecha Solicitud:</th>
+                        <td>{{ devolucion.fecha_solicitud|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% if devolucion.procesado_por %}
+                    <tr>
+                        <th>{% if devolucion.estado == 'procesada' %}Procesada{% else %}Rechazada{% endif %} por:</th>
+                        <td>{{ devolucion.procesado_por.username }}</td>
+                    </tr>
+                    <tr>
+                        <th>Fecha {% if devolucion.estado == 'procesada' %}Procesamiento{% else %}Rechazo{% endif %}:</th>
+                        <td>{{ devolucion.fecha_procesamiento|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if devolucion.notas %}
+                    <tr>
+                        <th>Notas:</th>
+                        <td>{{ devolucion.notas }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+        
+        <!-- Items de la Devolución -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Productos a Devolver</h5>
+            </div>
+            <div class="card-body">
+                {% if items %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Cantidad</th>
+                                <th>Precio Unitario</th>
+                                <th>Subtotal</th>
+                                <th>Motivo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ item.item_venta.producto.nombre }}</td>
+                                <td>{{ item.cantidad }}</td>
+                                <td>${{ item.item_venta.precio_unitario|floatformat:0 }}</td>
+                                <td><strong>{% widthratio item.item_venta.precio_unitario 1 item.cantidad as subtotal %}${{ subtotal|floatformat:0 }}</strong></td>
+                                <td><small>{{ item.motivo|default:"-" }}</small></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No hay items en esta devolución</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        {% if devolucion.estado == 'pendiente' %}
+        <div class="card">
+            <div class="card-header bg-warning text-white">
+                <h5 class="mb-0">Acciones</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'procesar_devolucion' devolucion.id %}" class="mb-3">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success w-100" onclick="return confirm('¿Estás seguro de procesar esta devolución? El stock se actualizará y se procesará el reembolso.')">
+                        <i class="bi bi-check-circle"></i> Procesar Devolución
+                    </button>
+                </form>
+                
+                <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#modalRechazar">
+                    <i class="bi bi-x-circle"></i> Rechazar Devolución
+                </button>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6>Resumen</h6>
+                <p class="mb-1"><strong>Monto Total:</strong></p>
+                <h4 class="text-danger">${{ devolucion.monto_devolver|floatformat:0 }}</h4>
+                {% if devolucion.estado == 'procesada' %}
+                <p class="text-success mt-2">
+                    <i class="bi bi-check-circle"></i> Esta devolución ya fue procesada. El stock fue actualizado.
+                </p>
+                {% elif devolucion.estado == 'pendiente' %}
+                <p class="text-warning mt-2">
+                    <i class="bi bi-exclamation-triangle"></i> Al procesar, se actualizará el stock de los productos devueltos.
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Rechazar -->
+<div class="modal fade" id="modalRechazar" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Rechazar Devolución</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'rechazar_devolucion' devolucion.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="motivo_rechazo" class="form-label">Motivo del Rechazo:</label>
+                        <textarea name="motivo_rechazo" id="motivo_rechazo" class="form-control" rows="3" required placeholder="Explica por qué se rechaza esta devolución..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">Rechazar Devolución</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

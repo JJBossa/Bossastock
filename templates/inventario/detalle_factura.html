@@ -6,7 +6,10 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-receipt"></i> Detalle de Factura</h2>
     <div>
-        <a href="{% url 'listar_facturas' %}" class="btn btn-secondary me-2">
+        <a href="{% url 'inicio' %}" class="btn btn-secondary me-2">
+            <i class="bi bi-arrow-left"></i> Volver al Inicio
+        </a>
+        <a href="{% url 'listar_facturas' %}" class="btn btn-outline-secondary me-2">
             <i class="bi bi-arrow-left"></i> Volver
         </a>
         <span class="badge {% if factura.estado == 'procesada' %}bg-success{% elif factura.estado == 'pendiente' %}bg-warning{% else %}bg-danger{% endif %}">
