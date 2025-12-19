@@ -12,9 +12,15 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-printer text-primary"></i> Imprimir Etiquetas</h2>
-    <a href="{% url 'inicio' %}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left"></i> Volver
-    </a>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-success btn-lg" id="btn-generar-flotante" onclick="generarPDF()" style="display: none;">
+            <i class="bi bi-printer"></i> Generar PDF 
+            <span class="badge bg-light text-dark ms-2" id="contador-seleccionados">0</span>
+        </button>
+        <a href="{% url 'inicio' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
 </div>
 
 <!-- Filtros -->
@@ -79,25 +85,113 @@
             {% endif %}
         </div>
     </div>
-    
-    <div class="text-center">
-        <button type="submit" class="btn btn-primary btn-lg">
-            <i class="bi bi-printer"></i> Generar PDF de Etiquetas
-        </button>
-    </div>
 </form>
+
+<!-- Botón flotante que sigue al usuario -->
+<div class="position-fixed" style="bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1040; display: none;" id="btn-flotante-container">
+    <button type="button" class="btn btn-success btn-lg shadow-lg" id="btn-generar-flotante-fixed" onclick="generarPDF()">
+        <i class="bi bi-printer"></i> Generar PDF
+        <span class="badge bg-light text-dark ms-2" id="contador-flotante">0</span>
+    </button>
+</div>
 
 <script>
 function seleccionarTodos() {
     document.querySelectorAll('input[name="producto_id"]').forEach(cb => cb.checked = true);
+    actualizarContadores();
 }
 function deseleccionarTodos() {
     document.querySelectorAll('input[name="producto_id"]').forEach(cb => cb.checked = false);
+    actualizarContadores();
 }
+
+function actualizarContadores() {
+    const seleccionados = document.querySelectorAll('input[name="producto_id"]:checked').length;
+    const contadorFlotante = document.getElementById('contador-flotante');
+    const contadorTop = document.getElementById('contador-seleccionados');
+    const btnFlotante = document.getElementById('btn-flotante-container');
+    const btnFlotanteTop = document.getElementById('btn-generar-flotante');
+    
+    if (contadorFlotante) contadorFlotante.textContent = seleccionados;
+    if (contadorTop) contadorTop.textContent = seleccionados;
+    
+    // Mostrar/ocultar botón flotante según si hay productos seleccionados
+    if (seleccionados > 0) {
+        if (btnFlotante) btnFlotante.style.display = 'block';
+        if (btnFlotanteTop) btnFlotanteTop.style.display = 'inline-block';
+    } else {
+        if (btnFlotante) btnFlotante.style.display = 'none';
+        if (btnFlotanteTop) btnFlotanteTop.style.display = 'none';
+    }
+}
+
+function generarPDF() {
+    const seleccionados = document.querySelectorAll('input[name="producto_id"]:checked');
+    if (seleccionados.length === 0) {
+        alert('Por favor selecciona al menos un producto');
+        return;
+    }
+    document.getElementById('form-etiquetas').submit();
+}
+
+// Actualizar contadores cuando cambian los checkboxes
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('input[name="producto_id"]');
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', actualizarContadores);
+    });
+    actualizarContadores();
+    
+    // Mostrar botón flotante cuando el usuario hace scroll
+    let lastScrollTop = 0;
+    window.addEventListener('scroll', function() {
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const btnFlotante = document.getElementById('btn-flotante-container');
+        const seleccionados = document.querySelectorAll('input[name="producto_id"]:checked').length;
+        
+        if (btnFlotante && seleccionados > 0) {
+            // Mostrar cuando se hace scroll hacia abajo, ocultar cuando se sube mucho
+            if (scrollTop > 200) {
+                btnFlotante.style.display = 'block';
+            } else {
+                btnFlotante.style.display = 'none';
+            }
+        }
+        lastScrollTop = scrollTop;
+    });
+});
 </script>
+
+<style>
+#btn-flotante-container {
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translate(-50%, 100px);
+        opacity: 0;
+    }
+    to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
+}
+
+#btn-generar-flotante-fixed {
+    min-width: 200px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: all 0.3s ease;
+}
+
+#btn-generar-flotante-fixed:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+}
+</style>
 {% endblock %}
 
 {% block ayuda %}
-{% include 'inventario/ayuda_contextual.html' %}
+{# Botón de ayuda deshabilitado en esta página #}
 {% endblock %}
 

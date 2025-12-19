@@ -849,3 +849,121 @@ class RecepcionMercancia(models.Model):
     
     def __str__(self):
         return f"Recepción OC #{self.orden_compra.numero_orden} - {self.fecha_recepcion.strftime('%d/%m/%Y')}"
+
+# ========== MODELOS PARA MEJORAS ==========
+
+class HistorialBusqueda(models.Model):
+    """Modelo para guardar el historial de búsquedas del usuario"""
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='busquedas')
+    query = models.CharField(max_length=255, verbose_name="Búsqueda")
+    tipo = models.CharField(
+        max_length=20,
+        choices=[
+            ('producto', 'Producto'),
+            ('cliente', 'Cliente'),
+            ('venta', 'Venta'),
+            ('cotizacion', 'Cotización'),
+            ('global', 'Búsqueda Global'),
+        ],
+        default='global',
+        verbose_name="Tipo"
+    )
+    resultados = models.IntegerField(default=0, verbose_name="Cantidad de Resultados")
+    fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha")
+    
+    class Meta:
+        verbose_name = "Historial de Búsqueda"
+        verbose_name_plural = "Historial de Búsquedas"
+        ordering = ['-fecha']
+        indexes = [
+            models.Index(fields=['usuario', '-fecha']),
+            models.Index(fields=['query']),
+        ]
+    
+    def __str__(self):
+        return f"{self.usuario.username} - {self.query} - {self.fecha}"
+
+class LogAccion(models.Model):
+    """Modelo para logs detallados de acciones del usuario"""
+    TIPO_ACCION = [
+        ('crear', 'Crear'),
+        ('editar', 'Editar'),
+        ('eliminar', 'Eliminar'),
+        ('ver', 'Ver'),
+        ('exportar', 'Exportar'),
+        ('imprimir', 'Imprimir'),
+        ('login', 'Iniciar Sesión'),
+        ('logout', 'Cerrar Sesión'),
+        ('buscar', 'Buscar'),
+        ('otro', 'Otro'),
+    ]
+    
+    MODULO_CHOICES = [
+        ('producto', 'Producto'),
+        ('cliente', 'Cliente'),
+        ('venta', 'Venta'),
+        ('cotizacion', 'Cotización'),
+        ('factura', 'Factura'),
+        ('proveedor', 'Proveedor'),
+        ('almacen', 'Almacén'),
+        ('compra', 'Compra'),
+        ('usuario', 'Usuario'),
+        ('sistema', 'Sistema'),
+    ]
+    
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='acciones')
+    tipo_accion = models.CharField(max_length=20, choices=TIPO_ACCION, verbose_name="Tipo de Acción")
+    modulo = models.CharField(max_length=20, choices=MODULO_CHOICES, verbose_name="Módulo")
+    objeto_id = models.IntegerField(null=True, blank=True, verbose_name="ID del Objeto")
+    objeto_tipo = models.CharField(max_length=100, blank=True, null=True, verbose_name="Tipo de Objeto")
+    descripcion = models.TextField(verbose_name="Descripción")
+    datos_anteriores = models.JSONField(null=True, blank=True, verbose_name="Datos Anteriores")
+    datos_nuevos = models.JSONField(null=True, blank=True, verbose_name="Datos Nuevos")
+    ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name="Dirección IP")
+    user_agent = models.TextField(blank=True, null=True, verbose_name="User Agent")
+    fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha")
+    
+    class Meta:
+        verbose_name = "Log de Acción"
+        verbose_name_plural = "Logs de Acciones"
+        ordering = ['-fecha']
+        indexes = [
+            models.Index(fields=['usuario', '-fecha']),
+            models.Index(fields=['modulo', 'tipo_accion']),
+            models.Index(fields=['-fecha']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_tipo_accion_display()} - {self.get_modulo_display()} - {self.usuario} - {self.fecha}"
+
+class NotificacionUsuario(models.Model):
+    """Modelo para notificaciones del usuario"""
+    TIPO_NOTIFICACION = [
+        ('stock_bajo', 'Stock Bajo'),
+        ('cuenta_vencida', 'Cuenta Vencida'),
+        ('orden_pendiente', 'Orden Pendiente'),
+        ('sistema', 'Sistema'),
+        ('info', 'Información'),
+        ('warning', 'Advertencia'),
+        ('error', 'Error'),
+    ]
+    
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notificaciones')
+    tipo = models.CharField(max_length=20, choices=TIPO_NOTIFICACION, verbose_name="Tipo")
+    titulo = models.CharField(max_length=200, verbose_name="Título")
+    mensaje = models.TextField(verbose_name="Mensaje")
+    leida = models.BooleanField(default=False, verbose_name="Leída")
+    fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha")
+    url_relacionada = models.CharField(max_length=500, blank=True, null=True, verbose_name="URL Relacionada")
+    datos_adicionales = models.JSONField(null=True, blank=True, verbose_name="Datos Adicionales")
+    
+    class Meta:
+        verbose_name = "Notificación"
+        verbose_name_plural = "Notificaciones"
+        ordering = ['-fecha', 'leida']
+        indexes = [
+            models.Index(fields=['usuario', 'leida', '-fecha']),
+        ]
+    
+    def __str__(self):
+        return f"{self.titulo} - {self.usuario.username} - {self.fecha}"

@@ -14,8 +14,8 @@ from reportlab.graphics import renderPDF
 import io
 import os
 import pytz
-from .models import Producto, Categoria, Venta, ItemVenta
-from .utils import es_admin_bossa
+from .models import Producto, Categoria, Venta, ItemVenta, LogAccion
+from .utils import es_admin_bossa, logger
 from django.contrib import messages
 
 @login_required
@@ -63,17 +63,40 @@ def generar_etiquetas_pdf(request):
     if not producto_ids:
         return HttpResponse('No se seleccionaron productos', status=400)
     
+    # Opciones de plantilla
+    plantilla = request.GET.get('plantilla', 'estandar')  # estandar, compacta, detallada
+    cantidad_por_producto = int(request.GET.get('cantidad', 1))
+    incluir_precio = request.GET.get('incluir_precio', 'true') == 'true'
+    incluir_codigo_barras = request.GET.get('incluir_codigo_barras', 'true') == 'true'
+    
     productos = Producto.objects.filter(id__in=producto_ids, activo=True)
     
+    # Configurar tamaño según plantilla
+    if plantilla == 'compacta':
+        page_size = (3*inch, 1.5*inch)
+        margins = 0.15*inch
+    elif plantilla == 'detallada':
+        page_size = (4*inch, 3*inch)
+        margins = 0.2*inch
+    else:  # estandar
+        page_size = (4*inch, 2*inch)
+        margins = 0.2*inch
+    
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=(4*inch, 2*inch), 
-                           rightMargin=0.2*inch, leftMargin=0.2*inch,
-                           topMargin=0.2*inch, bottomMargin=0.2*inch)
+    doc = SimpleDocTemplate(buffer, pagesize=page_size, 
+                           rightMargin=margins, leftMargin=margins,
+                           topMargin=margins, bottomMargin=margins)
     elements = []
     
     styles = getSampleStyleSheet()
     
+    # Repetir productos según cantidad
+    productos_a_imprimir = []
     for producto in productos:
+        for _ in range(cantidad_por_producto):
+            productos_a_imprimir.append(producto)
+    
+    for producto in productos_a_imprimir:
         # Nombre del producto
         nombre_style = ParagraphStyle(
             'Nombre',
@@ -85,24 +108,26 @@ def generar_etiquetas_pdf(request):
         )
         nombre = Paragraph(producto.nombre[:30], nombre_style)
         
-        # Precio
-        precio_text = f"${producto.precio:,.0f}"
-        if producto.precio_promo:
-            precio_text = f"${producto.precio_promo:,.0f} (Promo)"
+        # Precio (solo si está habilitado)
+        precio = None
+        if incluir_precio:
+            precio_text = f"${producto.precio:,.0f}"
+            if producto.precio_promo:
+                precio_text = f"${producto.precio_promo:,.0f} (Promo)"
+            
+            precio_style = ParagraphStyle(
+                'Precio',
+                parent=styles['Normal'],
+                fontSize=14 if plantilla != 'compacta' else 12,
+                textColor=colors.black,
+                leading=16,
+                alignment=0,
+                fontName='Helvetica-Bold'
+            )
+            precio = Paragraph(precio_text, precio_style)
         
-        precio_style = ParagraphStyle(
-            'Precio',
-            parent=styles['Normal'],
-            fontSize=14,
-            textColor=colors.black,
-            leading=16,
-            alignment=0,
-            fontName='Helvetica-Bold'
-        )
-        precio = Paragraph(precio_text, precio_style)
-        
-        # Código de barras
-        if producto.sku:
+        # Código de barras (solo si está habilitado)
+        if incluir_codigo_barras and producto.sku:
             try:
                 barcode = code128.Code128(producto.sku, barWidth=0.8*mm, barHeight=15*mm)
                 elements.append(barcode)
@@ -110,12 +135,28 @@ def generar_etiquetas_pdf(request):
                 pass
         
         elements.append(nombre)
-        elements.append(precio)
+        if precio:
+            elements.append(precio)
         elements.append(Spacer(1, 0.1*inch))
         elements.append(PageBreak())
     
     doc.build(elements)
     buffer.seek(0)
+    
+    # Registrar en logs si está disponible
+    try:
+        from .models import LogAccion
+        LogAccion.objects.create(
+            usuario=request.user,
+            tipo_accion='imprimir',
+            modulo='sistema',
+            descripcion=f'Impresión de etiquetas: {len(productos)} productos',
+            objeto_tipo='Etiquetas',
+            ip_address=request.META.get('REMOTE_ADDR', ''),
+            user_agent=request.META.get('HTTP_USER_AGENT', '')
+        )
+    except:
+        pass  # Si no está disponible, continuar sin registrar
     
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="etiquetas.pdf"'

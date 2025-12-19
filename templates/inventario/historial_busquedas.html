@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Historial de Búsquedas - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'busqueda_global' %}">Búsqueda Global</a></li>
+        <li class="breadcrumb-item active">Historial</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-clock-history text-primary"></i> Historial de Búsquedas</h2>
+    <a href="{% url 'busqueda_global' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Volver a Búsqueda
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-header bg-light">
+        <h5 class="mb-0">Tus Búsquedas Recientes</h5>
+    </div>
+    <div class="card-body">
+        {% if busquedas %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Búsqueda</th>
+                        <th>Tipo</th>
+                        <th>Resultados</th>
+                        <th>Fecha</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for busqueda in busquedas %}
+                    <tr>
+                        <td><strong>{{ busqueda.query }}</strong></td>
+                        <td>
+                            <span class="badge bg-secondary">{{ busqueda.get_tipo_display }}</span>
+                        </td>
+                        <td>{{ busqueda.resultados }} resultado{{ busqueda.resultados|pluralize }}</td>
+                        <td>{{ busqueda.fecha|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            <a href="{% url 'busqueda_global' %}?q={{ busqueda.query }}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-search"></i> Buscar de nuevo
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No tienes búsquedas recientes
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

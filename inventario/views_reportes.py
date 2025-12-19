@@ -26,10 +26,29 @@ def reportes_avanzados(request):
         messages.error(request, 'No tienes permisos para acceder a esta sección.')
         return redirect('inicio')
     
-    # Período de tiempo
-    dias = int(request.GET.get('dias', 30))
-    fecha_desde = timezone.now().date() - timedelta(days=dias)
-    fecha_hasta = timezone.now().date()
+    # Obtener fechas personalizadas o usar período predefinido
+    fecha_desde_str = request.GET.get('fecha_desde', '')
+    fecha_hasta_str = request.GET.get('fecha_hasta', '')
+    dias = request.GET.get('dias', '')
+    
+    # Si hay fechas personalizadas, usarlas
+    if fecha_desde_str and fecha_hasta_str:
+        try:
+            fecha_desde = datetime.strptime(fecha_desde_str, '%Y-%m-%d').date()
+            fecha_hasta = datetime.strptime(fecha_hasta_str, '%Y-%m-%d').date()
+            if fecha_desde > fecha_hasta:
+                fecha_desde, fecha_hasta = fecha_hasta, fecha_desde
+            dias = 'personalizado'  # Indicar que es rango personalizado
+        except:
+            # Si hay error, usar período por defecto
+            dias = int(dias) if dias else 30
+            fecha_desde = timezone.now().date() - timedelta(days=dias)
+            fecha_hasta = timezone.now().date()
+    else:
+        # Usar período predefinido
+        dias = int(dias) if dias else 30
+        fecha_desde = timezone.now().date() - timedelta(days=dias)
+        fecha_hasta = timezone.now().date()
     
     # ========== ANÁLISIS DE VENTAS ==========
     ventas_periodo = Venta.objects.filter(
@@ -203,10 +222,23 @@ def reportes_avanzados(request):
     total_compras = ordenes_periodo.aggregate(Sum('total'))['total__sum'] or 0
     ordenes_pendientes = ordenes_periodo.filter(estado__in=['pendiente', 'parcial']).count()
     
+    # Normalizar dias para el template
+    if isinstance(dias, str) and dias == 'personalizado':
+        dias_template = 'personalizado'
+    elif isinstance(dias, int):
+        dias_template = dias
+    else:
+        try:
+            dias_template = int(dias) if dias else 30
+        except:
+            dias_template = 30
+    
     context = {
-        'dias': dias,
-        'fecha_desde': fecha_desde,
-        'fecha_hasta': fecha_hasta,
+        'dias': dias_template,
+        'fecha_desde': fecha_desde.strftime('%Y-%m-%d'),
+        'fecha_hasta': fecha_hasta.strftime('%Y-%m-%d'),
+        'fecha_desde_display': fecha_desde.strftime('%d/%m/%Y'),
+        'fecha_hasta_display': fecha_hasta.strftime('%d/%m/%Y'),
         # Ventas
         'total_ventas_periodo': total_ventas_periodo,
         'cantidad_ventas': cantidad_ventas,

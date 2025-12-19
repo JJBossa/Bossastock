@@ -16,6 +16,10 @@ from . import views_clientes
 from . import views_cuentas_cobrar
 from . import views_almacenes
 from . import views_compras
+from . import views_busqueda_global
+from . import views_exportacion_avanzada
+from . import views_logs_auditoria
+from . import views_notificaciones
 
 urlpatterns = [
     path('', views.inicio, name='inicio'),
@@ -112,5 +116,21 @@ urlpatterns = [
     path('compras/crear/', views_compras.crear_orden_compra, name='crear_orden_compra'),
     path('compras/<int:orden_id>/', views_compras.detalle_orden_compra, name='detalle_orden_compra'),
     path('compras/<int:orden_id>/recibir/', views_compras.recibir_mercancia, name='recibir_mercancia'),
+    # Búsqueda Global
+    path('buscar/', views_busqueda_global.busqueda_global, name='busqueda_global'),
+    path('api/busqueda-global/', views_busqueda_global.busqueda_global_api, name='busqueda_global_api'),
+    path('historial-busquedas/', views_busqueda_global.historial_busquedas, name='historial_busquedas'),
+    # Exportación Avanzada
+    path('exportacion-avanzada/', views_exportacion_avanzada.exportacion_avanzada, name='exportacion_avanzada'),
+    path('api/exportar-avanzado/', views_exportacion_avanzada.exportar_datos_avanzado, name='exportar_datos_avanzado'),
+    # Logs y Auditoría
+    path('logs/', views_logs_auditoria.listar_logs, name='listar_logs'),
+    path('logs/<int:log_id>/', views_logs_auditoria.detalle_log, name='detalle_log'),
+    path('logs/exportar/', views_logs_auditoria.exportar_logs, name='exportar_logs'),
+    # Notificaciones
+    path('notificaciones/', views_notificaciones.centro_notificaciones, name='centro_notificaciones'),
+    path('api/notificaciones/', views_notificaciones.obtener_notificaciones_api, name='obtener_notificaciones_api'),
+    path('notificaciones/<int:notificacion_id>/marcar-leida/', views_notificaciones.marcar_notificacion_leida, name='marcar_notificacion_leida'),
+    path('notificaciones/marcar-todas-leidas/', views_notificaciones.marcar_todas_leidas, name='marcar_todas_leidas'),
 ]
 

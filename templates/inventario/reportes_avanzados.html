@@ -45,18 +45,73 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <h2><i class="bi bi-graph-up text-primary"></i> Reportes y Análisis Avanzados</h2>
-    <div class="d-flex gap-2">
-        <form method="get" class="d-inline">
-            <select name="dias" class="form-select d-inline-block" style="width: auto;" onchange="this.form.submit()">
-                <option value="7" {% if dias == 7 %}selected{% endif %}>Últimos 7 días</option>
-                <option value="30" {% if dias == 30 %}selected{% endif %}>Últimos 30 días</option>
-                <option value="90" {% if dias == 90 %}selected{% endif %}>Últimos 90 días</option>
-                <option value="365" {% if dias == 365 %}selected{% endif %}>Último año</option>
-            </select>
-        </form>
-        <a href="{% url 'inicio' %}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Volver
-        </a>
+    <a href="{% url 'inicio' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Volver
+    </a>
+</div>
+
+<!-- Selector de Período -->
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="bi bi-calendar-range"></i> Seleccionar Período</h5>
+    </div>
+    <div class="card-body">
+        <!-- Períodos Predefinidos -->
+        <div class="mb-3">
+            <label class="form-label small text-muted">Períodos Rápidos:</label>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="?dias=7" class="btn btn-sm {% if dias == 7 %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    <i class="bi bi-calendar-day"></i> Últimos 7 días
+                </a>
+                <a href="?dias=30" class="btn btn-sm {% if dias == 30 %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    <i class="bi bi-calendar-week"></i> Últimos 30 días
+                </a>
+                <a href="?dias=90" class="btn btn-sm {% if dias == 90 %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    <i class="bi bi-calendar-month"></i> Últimos 90 días
+                </a>
+                <a href="?dias=365" class="btn btn-sm {% if dias == 365 %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    <i class="bi bi-calendar"></i> Último año
+                </a>
+            </div>
+        </div>
+        
+        <!-- Rango Personalizado -->
+        <div class="border-top pt-3">
+            <label class="form-label small text-muted">Rango Personalizado:</label>
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label for="fecha_desde" class="form-label small">Desde:</label>
+                    <input type="date" 
+                           class="form-control" 
+                           id="fecha_desde" 
+                           name="fecha_desde" 
+                           value="{{ fecha_desde }}"
+                           required>
+                </div>
+                <div class="col-md-4">
+                    <label for="fecha_hasta" class="form-label small">Hasta:</label>
+                    <input type="date" 
+                           class="form-control" 
+                           id="fecha_hasta" 
+                           name="fecha_hasta" 
+                           value="{{ fecha_hasta }}"
+                           required>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search"></i> Aplicar Rango
+                    </button>
+                </div>
+            </form>
+            {% if dias == 'personalizado' %}
+            <div class="mt-2">
+                <small class="text-success">
+                    <i class="bi bi-check-circle"></i> Rango personalizado activo: 
+                    {{ fecha_desde_display }} - {{ fecha_hasta_display }}
+                </small>
+            </div>
+            {% endif %}
+        </div>
     </div>
 </div>
 

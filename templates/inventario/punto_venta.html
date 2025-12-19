@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Punto de Venta - STOCKEX{% endblock %}
 
@@ -841,6 +842,7 @@ document.getElementById('confirmarVentaModal').addEventListener('hidden.bs.modal
     100% { background-color: #fff; }
 }
 </style>
+<script src="{% static 'js/pos-mejoras.js' %}"></script>
 {% endblock %}
 
 {% block ayuda %}
