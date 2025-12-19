@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block title %}Cotizaciones - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item active">Cotizaciones</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-file-earmark-text text-info"></i> {% if es_admin %}Cotizaciones{% else %}Mis Cotizaciones{% endif %}</h2>
+    <div>
+        <a href="{% url 'crear_cotizacion' %}" class="btn btn-success me-2">
+            <i class="bi bi-plus-circle"></i> Nueva Cotización
+        </a>
+        <a href="{% url 'inicio' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+</div>
+
+<!-- Estadísticas -->
+{% if es_admin or total_cotizaciones_count > 0 %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h5>{% if es_admin %}Total Cotizaciones{% else %}Mis Cotizaciones{% endif %}</h5>
+                <h3>${{ total_cotizaciones|floatformat:0 }}</h3>
+                <small>{{ total_cotizaciones_count }} cotización{{ total_cotizaciones_count|pluralize:"es" }}</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Filtros -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Número de Cotización</label>
+                <input type="text" name="numero_cotizacion" class="form-control" value="{{ numero_cotizacion }}" placeholder="COT-...">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Estado</label>
+                <select name="estado" class="form-select">
+                    <option value="">Todos</option>
+                    <option value="pendiente" {% if estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                    <option value="aprobada" {% if estado == 'aprobada' %}selected{% endif %}>Aprobada</option>
+                    <option value="rechazada" {% if estado == 'rechazada' %}selected{% endif %}>Rechazada</option>
+                    <option value="vencida" {% if estado == 'vencida' %}selected{% endif %}>Vencida</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Cliente</label>
+                <input type="text" name="cliente" class="form-control" value="{{ cliente }}" placeholder="Nombre cliente">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Desde</label>
+                <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Hasta</label>
+                <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}">
+            </div>
+            <div class="col-md-1 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="bi bi-search"></i> Filtrar
+                </button>
+            </div>
+            <div class="col-md-1 d-flex align-items-end">
+                <a href="{% url 'listar_cotizaciones' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Limpiar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla de cotizaciones -->
+<div class="card">
+    <div class="card-body">
+        {% if cotizaciones %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Número</th>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        {% if es_admin %}<th>Vendedor</th>{% endif %}
+                        <th>Items</th>
+                        <th>Total</th>
+                        <th>Válida Hasta</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cotizacion in cotizaciones %}
+                    <tr>
+                        <td><strong>{{ cotizacion.numero_cotizacion }}</strong></td>
+                        <td>{{ cotizacion.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                        <td>{{ cotizacion.cliente_nombre }}</td>
+                        {% if es_admin %}<td>{{ cotizacion.usuario.username|default:"-" }}</td>{% endif %}
+                        <td>{{ cotizacion.items.count }} producto{{ cotizacion.items.count|pluralize }}</td>
+                        <td><strong>${{ cotizacion.total|floatformat:0 }}</strong></td>
+                        <td>{{ cotizacion.fecha_vencimiento|date:"d/m/Y" }}</td>
+                        <td>
+                            {% if cotizacion.estado == 'pendiente' %}
+                                {% if cotizacion.esta_vencida %}
+                                <span class="badge bg-warning">Vencida</span>
+                                {% else %}
+                                <span class="badge bg-warning">Pendiente</span>
+                                {% endif %}
+                            {% elif cotizacion.estado == 'aprobada' %}
+                            <span class="badge bg-success">Aprobada</span>
+                            {% elif cotizacion.estado == 'rechazada' %}
+                            <span class="badge bg-danger">Rechazada</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ cotizacion.get_estado_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'detalle_cotizacion' cotizacion.id %}" class="btn btn-sm btn-info">
+                                <i class="bi bi-eye"></i> Ver
+                            </a>
+                            <a href="{% url 'imprimir_cotizacion' cotizacion.id %}" class="btn btn-sm btn-primary" target="_blank">
+                                <i class="bi bi-printer"></i> PDF
+                            </a>
+                            {% if cotizacion.estado == 'pendiente' and not cotizacion.convertida_en_venta %}
+                            <button class="btn btn-sm btn-success" onclick="convertirEnVenta({{ cotizacion.id }}, '{{ cotizacion.numero_cotizacion }}')">
+                                <i class="bi bi-cash-register"></i> Convertir
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginación -->
+        {% if cotizaciones.has_other_pages %}
+        <nav aria-label="Paginación">
+            <ul class="pagination justify-content-center">
+                {% if cotizaciones.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ cotizaciones.previous_page_number }}">Anterior</a>
+                </li>
+                {% endif %}
+                <li class="page-item active">
+                    <span class="page-link">Página {{ cotizaciones.number }} de {{ cotizaciones.paginator.num_pages }}</span>
+                </li>
+                {% if cotizaciones.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ cotizaciones.next_page_number }}">Siguiente</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-file-earmark-text" style="font-size: 4rem; color: #ccc;"></i>
+            <h4 class="mt-3">No hay cotizaciones registradas</h4>
+            <a href="{% url 'crear_cotizacion' %}" class="btn btn-primary mt-3">
+                <i class="bi bi-plus-circle"></i> Crear Primera Cotización
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function convertirEnVenta(cotizacionId, numeroCotizacion) {
+    if (!confirm(`¿Convertir la cotización ${numeroCotizacion} en una venta?`)) {
+        return;
+    }
+    
+    const csrftoken = getCookie('csrftoken');
+    
+    fetch(`/cotizaciones/${cotizacionId}/convertir/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.mensaje);
+            window.location.href = `/ventas/${data.venta_id}/`;
+        } else {
+            alert('Error: ' + (data.error || 'No se pudo convertir la cotización'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al convertir la cotización');
+    });
+}
+</script>
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
+{% endblock %}
+

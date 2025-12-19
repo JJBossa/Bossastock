@@ -1,23 +1,38 @@
-# Control de Stock - Sistema Django
+# STOCKEX - Sistema Django
 
 Sistema de control de inventario desarrollado con Django que permite gestionar productos, buscar por nombre y filtrar por diferentes criterios.
 
 ## Características
 
-- ✅ Sistema de autenticación (login/logout)
-- ✅ Visualización de productos con diseño moderno
-- ✅ **Imágenes de productos** - Cada producto puede tener su imagen
-- ✅ Búsqueda de productos por nombre
+### Funcionalidades Principales
+- ✅ Sistema de autenticación (login/logout) con gestión de usuarios
+- ✅ Visualización de productos con diseño moderno y responsive
+- ✅ **Imágenes de productos** - Cada producto puede tener su imagen (con optimización automática)
+- ✅ Búsqueda avanzada de productos (nombre, SKU, descripción)
+- ✅ **Búsqueda rápida por código de barras** - Presiona `F` para acceso rápido
 - ✅ Filtros avanzados (categoría, precio, stock, fecha)
 - ✅ Paginación de resultados
 - ✅ Indicadores visuales de stock (verde/amarillo/rojo)
-- ✅ Interfaz responsive y moderna
-- ✅ **Sistema de Facturas con OCR** - Sube facturas y actualiza stock automáticamente
+- ✅ **Productos favoritos** - Marca tus productos más usados
+- ✅ **Modo oscuro/claro** - Interfaz adaptable con preferencia guardada
 - ✅ Dashboard con estadísticas completas
-- ✅ Historial de cambios y auditoría
-- ✅ Exportar a PDF/Excel/CSV
-- ✅ Categorías de productos
+- ✅ Historial de cambios y auditoría completa
+
+### Sistema de Facturas
+- ✅ **Sistema de Facturas con OCR** - Sube facturas y actualiza stock automáticamente
+- ✅ Detección automática de productos en facturas
+- ✅ Procesamiento inteligente de texto con Tesseract OCR
 - ✅ Gestión de proveedores
+
+### Exportación y Reportes
+- ✅ Exportar a PDF/Excel/CSV
+- ✅ Estadísticas detalladas en dashboard
+
+### Gestión y Administración
+- ✅ Categorías de productos con colores personalizables
+- ✅ Gestión completa de usuarios (crear, editar, resetear contraseñas)
+- ✅ Panel de administración completo (Django Admin)
+- ✅ Script de inicio automático (`iniciar.bat`) - Funciona desde cualquier ubicación
 
 ## Instalación
 

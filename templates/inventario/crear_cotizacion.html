@@ -1,0 +1,392 @@
+{% extends 'base.html' %}
+
+{% block title %}Crear Cotización - STOCKEX{% endblock %}
+
+{% block extra_css %}
+<style>
+    .cotizacion-container {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 15px;
+        margin-top: 20px;
+    }
+    .productos-section {
+        overflow-y: auto;
+        max-height: calc(100vh - 200px);
+    }
+    .formulario-section {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+    }
+    .items-cotizacion {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-bottom: 15px;
+    }
+    .item-cotizacion {
+        background: white;
+        padding: 10px;
+        margin-bottom: 8px;
+        border-radius: 5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    @media (max-width: 768px) {
+        .cotizacion-container {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'listar_cotizaciones' %}">Cotizaciones</a></li>
+        <li class="breadcrumb-item active">Nueva Cotización</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-file-earmark-plus text-info"></i> Nueva Cotización</h2>
+    <a href="{% url 'listar_cotizaciones' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Volver
+    </a>
+</div>
+
+<div class="cotizacion-container">
+    <!-- Sección de productos -->
+    <div class="productos-section">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-box-seam"></i> Productos Disponibles</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <input type="text" 
+                           class="form-control" 
+                           id="buscar-producto" 
+                           placeholder="Buscar producto por nombre o código..."
+                           onkeyup="buscarProductos()">
+                </div>
+                <div id="productos-lista" class="row g-2">
+                    {% for producto in productos %}
+                    <div class="col-md-4 col-sm-6">
+                        <button class="btn btn-outline-primary w-100 text-start" 
+                                onclick="agregarProducto({{ producto.id }}, '{{ producto.nombre|escapejs }}', {{ producto.precio }})"
+                                style="font-size: 0.9rem;">
+                            <strong>{{ producto.nombre }}</strong><br>
+                            <small>${{ producto.precio|floatformat:0 }}</small>
+                            {% if producto.stock > 0 %}
+                            <span class="badge bg-success float-end">{{ producto.stock }} u.</span>
+                            {% else %}
+                            <span class="badge bg-danger float-end">Sin stock</span>
+                            {% endif %}
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sección de formulario y carrito -->
+    <div class="formulario-section">
+        <h5 class="mb-3"><i class="bi bi-cart"></i> Items de Cotización</h5>
+        
+        <div class="items-cotizacion" id="items-cotizacion">
+            <div class="text-center text-muted py-3">
+                <i class="bi bi-cart-x" style="font-size: 2rem;"></i>
+                <p class="mt-2 mb-0">No hay productos agregados</p>
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Cliente *</label>
+            <input type="text" class="form-control" id="cliente-nombre" required placeholder="Nombre del cliente">
+        </div>
+        
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">Contacto</label>
+                <input type="text" class="form-control" id="cliente-contacto" placeholder="Nombre de contacto">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Teléfono</label>
+                <input type="text" class="form-control" id="cliente-telefono" placeholder="+569...">
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" id="cliente-email" placeholder="cliente@ejemplo.com">
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Fecha de Vencimiento *</label>
+            <input type="date" class="form-control" id="fecha-vencimiento" value="{{ fecha_vencimiento_default }}" required>
+        </div>
+        
+        <hr>
+        
+        <div class="mb-3">
+            <label class="form-label">Subtotal</label>
+            <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="text" class="form-control" id="subtotal" value="0" readonly>
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Descuento</label>
+            <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="number" class="form-control" id="descuento" value="0" min="0" step="0.01" oninput="calcularTotal()">
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label"><strong>Total</strong></label>
+            <div class="input-group">
+                <span class="input-group-text">$</span>
+                <input type="text" class="form-control form-control-lg" id="total" value="0" readonly style="font-weight: bold; font-size: 1.2rem;">
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Notas</label>
+            <textarea class="form-control" id="notas" rows="3" placeholder="Notas adicionales..."></textarea>
+        </div>
+        
+        <div class="d-grid gap-2">
+            <button class="btn btn-success btn-lg" onclick="crearCotizacion()">
+                <i class="bi bi-check-circle"></i> Crear Cotización
+            </button>
+            <button type="button" class="btn btn-outline-danger" onclick="limpiarFormulario()">
+                <i class="bi bi-x-circle"></i> Limpiar
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let itemsCotizacion = [];
+let productosDisponibles = [
+    {% for producto in productos %}
+    {
+        id: {{ producto.id }},
+        nombre: '{{ producto.nombre|escapejs }}',
+        precio: {{ producto.precio }},
+        stock: {{ producto.stock }}
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+];
+
+function buscarProductos() {
+    const busqueda = document.getElementById('buscar-producto').value.toLowerCase();
+    const lista = document.getElementById('productos-lista');
+    let html = '';
+    
+    productosDisponibles.forEach(producto => {
+        if (producto.nombre.toLowerCase().includes(busqueda) || !busqueda) {
+            html += `
+                <div class="col-md-4 col-sm-6">
+                    <button class="btn btn-outline-primary w-100 text-start" 
+                            onclick="agregarProducto(${producto.id}, '${producto.nombre.replace(/'/g, "\\'")}', ${producto.precio})"
+                            style="font-size: 0.9rem;">
+                        <strong>${producto.nombre}</strong><br>
+                        <small>$${producto.precio.toLocaleString()}</small>
+                        ${producto.stock > 0 ? 
+                            `<span class="badge bg-success float-end">${producto.stock} u.</span>` : 
+                            `<span class="badge bg-danger float-end">Sin stock</span>`}
+                    </button>
+                </div>
+            `;
+        }
+    });
+    
+    lista.innerHTML = html || '<div class="col-12"><p class="text-muted">No se encontraron productos</p></div>';
+}
+
+function agregarProducto(productoId, nombre, precio) {
+    const itemExistente = itemsCotizacion.find(item => item.producto_id === productoId);
+    
+    if (itemExistente) {
+        itemExistente.cantidad++;
+    } else {
+        itemsCotizacion.push({
+            producto_id: productoId,
+            nombre: nombre,
+            precio: precio,
+            cantidad: 1
+        });
+    }
+    
+    actualizarItems();
+}
+
+function eliminarItem(index) {
+    itemsCotizacion.splice(index, 1);
+    actualizarItems();
+}
+
+function modificarCantidad(index, cambio) {
+    const item = itemsCotizacion[index];
+    const nuevaCantidad = item.cantidad + cambio;
+    
+    if (nuevaCantidad <= 0) {
+        eliminarItem(index);
+    } else {
+        item.cantidad = nuevaCantidad;
+        actualizarItems();
+    }
+}
+
+function actualizarItems() {
+    const container = document.getElementById('items-cotizacion');
+    
+    if (itemsCotizacion.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-3">
+                <i class="bi bi-cart-x" style="font-size: 2rem;"></i>
+                <p class="mt-2 mb-0">No hay productos agregados</p>
+            </div>
+        `;
+    } else {
+        let html = '';
+        itemsCotizacion.forEach((item, index) => {
+            const subtotal = item.precio * item.cantidad;
+            html += `
+                <div class="item-cotizacion">
+                    <div style="flex: 1;">
+                        <strong>${item.nombre}</strong><br>
+                        <small>$${item.precio.toLocaleString()} x ${item.cantidad}</small>
+                    </div>
+                    <div class="text-end">
+                        <strong>$${subtotal.toLocaleString()}</strong>
+                        <div class="btn-group btn-group-sm mt-1">
+                            <button class="btn btn-outline-secondary" onclick="modificarCantidad(${index}, -1)">-</button>
+                            <button class="btn btn-outline-secondary" onclick="modificarCantidad(${index}, 1)">+</button>
+                            <button class="btn btn-outline-danger" onclick="eliminarItem(${index})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+    
+    calcularTotal();
+}
+
+function calcularTotal() {
+    const subtotal = itemsCotizacion.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+    const descuento = parseFloat(document.getElementById('descuento').value) || 0;
+    const total = Math.max(0, subtotal - descuento);
+    
+    document.getElementById('subtotal').value = subtotal.toLocaleString();
+    document.getElementById('total').value = total.toLocaleString();
+}
+
+function limpiarFormulario() {
+    if (!confirm('¿Limpiar todo el formulario?')) return;
+    
+    itemsCotizacion = [];
+    actualizarItems();
+    document.getElementById('cliente-nombre').value = '';
+    document.getElementById('cliente-contacto').value = '';
+    document.getElementById('cliente-telefono').value = '';
+    document.getElementById('cliente-email').value = '';
+    document.getElementById('fecha-vencimiento').value = '{{ fecha_vencimiento_default }}';
+    document.getElementById('descuento').value = '0';
+    document.getElementById('notas').value = '';
+    calcularTotal();
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function crearCotizacion() {
+    const clienteNombre = document.getElementById('cliente-nombre').value.trim();
+    const fechaVencimiento = document.getElementById('fecha-vencimiento').value;
+    
+    if (!clienteNombre) {
+        alert('El nombre del cliente es requerido');
+        return;
+    }
+    
+    if (!fechaVencimiento) {
+        alert('La fecha de vencimiento es requerida');
+        return;
+    }
+    
+    if (itemsCotizacion.length === 0) {
+        alert('Debe agregar al menos un producto');
+        return;
+    }
+    
+    const subtotal = itemsCotizacion.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+    const descuento = parseFloat(document.getElementById('descuento').value) || 0;
+    const total = Math.max(0, subtotal - descuento);
+    
+    const formData = new FormData();
+    formData.append('items', JSON.stringify(itemsCotizacion));
+    formData.append('cliente_nombre', clienteNombre);
+    formData.append('cliente_contacto', document.getElementById('cliente-contacto').value);
+    formData.append('cliente_telefono', document.getElementById('cliente-telefono').value);
+    formData.append('cliente_email', document.getElementById('cliente-email').value);
+    formData.append('fecha_vencimiento', fechaVencimiento);
+    formData.append('subtotal', subtotal);
+    formData.append('descuento', descuento);
+    formData.append('total', total);
+    formData.append('notas', document.getElementById('notas').value);
+    
+    const csrftoken = getCookie('csrftoken');
+    
+    fetch('{% url "crear_cotizacion" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.mensaje);
+            window.location.href = `/cotizaciones/${data.cotizacion_id}/`;
+        } else {
+            alert('Error: ' + (data.error || 'No se pudo crear la cotización'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al crear la cotización');
+    });
+}
+</script>
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
+{% endblock %}
+

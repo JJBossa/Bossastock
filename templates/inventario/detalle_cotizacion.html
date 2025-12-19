@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+
+{% block title %}Cotización {{ cotizacion.numero_cotizacion }} - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'listar_cotizaciones' %}">Cotizaciones</a></li>
+        <li class="breadcrumb-item active">{{ cotizacion.numero_cotizacion }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-file-earmark-text text-info"></i> Cotización {{ cotizacion.numero_cotizacion }}</h2>
+    <div>
+        <div class="btn-group me-2" role="group">
+            <a href="{% url 'imprimir_cotizacion' cotizacion.id %}?tipo=termica" class="btn btn-primary" target="_blank" title="Impresora Térmica 58mm">
+                <i class="bi bi-printer"></i> Térmica
+            </a>
+            <a href="{% url 'imprimir_cotizacion' cotizacion.id %}?tipo=a4" class="btn btn-outline-primary" target="_blank" title="Formato A4">
+                <i class="bi bi-file-pdf"></i> A4
+            </a>
+        </div>
+        {% if cotizacion.estado == 'pendiente' and not cotizacion.convertida_en_venta %}
+        <button class="btn btn-success me-2" onclick="convertirEnVenta({{ cotizacion.id }}, '{{ cotizacion.numero_cotizacion }}')">
+            <i class="bi bi-cash-register"></i> Convertir en Venta
+        </button>
+        {% endif %}
+        <a href="{% url 'listar_cotizaciones' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-list-ul"></i> Items de la Cotización</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Cantidad</th>
+                                <th>Producto</th>
+                                <th>Precio Unit.</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ item.cantidad }}</td>
+                                <td>
+                                    <strong>{{ item.nombre_producto }}</strong>
+                                    {% if item.producto %}
+                                    <br><small class="text-muted">SKU: {{ item.producto.sku|default:"-" }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>${{ item.precio_unitario|floatformat:0 }}</td>
+                                <td><strong>${{ item.subtotal|floatformat:0 }}</strong></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="3">Subtotal</th>
+                                <th>${{ cotizacion.subtotal|floatformat:0 }}</th>
+                            </tr>
+                            {% if cotizacion.descuento > 0 %}
+                            <tr>
+                                <th colspan="3">Descuento</th>
+                                <th class="text-danger">-${{ cotizacion.descuento|floatformat:0 }}</th>
+                            </tr>
+                            {% endif %}
+                            <tr class="table-primary">
+                                <th colspan="3">TOTAL</th>
+                                <th>${{ cotizacion.total|floatformat:0 }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Información</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <th>Fecha de Creación:</th>
+                        <td>{{ cotizacion.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Válida Hasta:</th>
+                        <td>
+                            {{ cotizacion.fecha_vencimiento|date:"d/m/Y" }}
+                            {% if cotizacion.esta_vencida %}
+                            <span class="badge bg-warning ms-2">Vencida</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Estado:</th>
+                        <td>
+                            {% if cotizacion.estado == 'pendiente' %}
+                                {% if cotizacion.esta_vencida %}
+                                <span class="badge bg-warning">Vencida</span>
+                                {% else %}
+                                <span class="badge bg-warning">Pendiente</span>
+                                {% endif %}
+                            {% elif cotizacion.estado == 'aprobada' %}
+                            <span class="badge bg-success">Aprobada</span>
+                            {% elif cotizacion.estado == 'rechazada' %}
+                            <span class="badge bg-danger">Rechazada</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ cotizacion.get_estado_display }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% if cotizacion.usuario %}
+                    <tr>
+                        <th>Vendedor:</th>
+                        <td>{{ cotizacion.usuario.username|default:"-" }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if cotizacion.convertida_en_venta %}
+                    <tr>
+                        <th>Convertida en Venta:</th>
+                        <td>
+                            <a href="{% url 'detalle_venta' cotizacion.convertida_en_venta.id %}" class="btn btn-sm btn-success">
+                                Ver Venta #{{ cotizacion.convertida_en_venta.numero_venta }}
+                            </a>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-person"></i> Datos del Cliente</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <th>Nombre:</th>
+                        <td>{{ cotizacion.cliente_nombre }}</td>
+                    </tr>
+                    {% if cotizacion.cliente_contacto %}
+                    <tr>
+                        <th>Contacto:</th>
+                        <td>{{ cotizacion.cliente_contacto }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if cotizacion.cliente_telefono %}
+                    <tr>
+                        <th>Teléfono:</th>
+                        <td>{{ cotizacion.cliente_telefono }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if cotizacion.cliente_email %}
+                    <tr>
+                        <th>Email:</th>
+                        <td>{{ cotizacion.cliente_email }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+        
+        {% if cotizacion.notas %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-sticky"></i> Notas</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-0">{{ cotizacion.notas|linebreaks }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function convertirEnVenta(cotizacionId, numeroCotizacion) {
+    if (!confirm(`¿Convertir la cotización ${numeroCotizacion} en una venta?\n\nSe descontará el stock de los productos.`)) {
+        return;
+    }
+    
+    const csrftoken = getCookie('csrftoken');
+    
+    fetch(`/cotizaciones/${cotizacionId}/convertir/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.mensaje);
+            window.location.href = `/ventas/${data.venta_id}/`;
+        } else {
+            alert('Error: ' + (data.error || 'No se pudo convertir la cotización'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al convertir la cotización');
+    });
+}
+</script>
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
+{% endblock %}
+

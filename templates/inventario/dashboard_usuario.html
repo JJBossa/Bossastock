@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item active">Dashboard</li>
+    </ol>
+</nav>
+
+<h2 class="mb-4"><i class="bi bi-speedometer2 text-primary"></i> Dashboard</h2>
+
+<!-- Estadísticas -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h3><i class="bi bi-boxes"></i></h3>
+                <h4>{{ total_productos }}</h4>
+                <p class="mb-0">Total de Productos</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card bg-info text-white">
+            <div class="card-body text-center">
+                <h3><i class="bi bi-tags"></i></h3>
+                <h4>{{ categorias_count }}</h4>
+                <p class="mb-0">Categorías</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Productos Recientes -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Productos Recientes</h5>
+    </div>
+    <div class="card-body">
+        {% if productos_recientes %}
+        <div class="list-group">
+            {% for producto in productos_recientes %}
+            <a href="{% url 'detalle_producto' producto.id %}" class="list-group-item list-group-item-action">
+                <div class="d-flex w-100 justify-content-between">
+                    <h6 class="mb-1">{{ producto.nombre }}</h6>
+                    <small>{{ producto.fecha_creacion|date:"d/m/Y" }}</small>
+                </div>
+                <p class="mb-1">${{ producto.precio|floatformat:0 }}</p>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted">No hay productos recientes</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Favoritos -->
+{% if favoritos %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-star-fill text-warning"></i> Mis Favoritos</h5>
+    </div>
+    <div class="card-body">
+        <div class="list-group">
+            {% for favorito in favoritos %}
+            <a href="{% url 'detalle_producto' favorito.producto.id %}" class="list-group-item list-group-item-action">
+                <div class="d-flex w-100 justify-content-between">
+                    <h6 class="mb-1">{{ favorito.producto.nombre }}</h6>
+                    <small>${{ favorito.producto.precio|floatformat:0 }}</small>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        <div class="mt-3">
+            <a href="{% url 'mis_favoritos' %}" class="btn btn-outline-primary">
+                Ver todos mis favoritos
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
+{% endblock %}
+

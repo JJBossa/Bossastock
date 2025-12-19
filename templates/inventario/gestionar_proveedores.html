@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Gestionar Proveedores - Control de Stock{% endblock %}
+{% block title %}Gestionar Proveedores - STOCKEX{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -85,7 +85,7 @@
                                         <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#editarModal{{ proveedor.id }}">
                                             <i class="bi bi-pencil"></i>
                                         </button>
-                                        <form method="post" style="display: inline;">
+                                        <form method="post" class="form-inline">
                                             {% csrf_token %}
                                             <input type="hidden" name="eliminar" value="1">
                                             <input type="hidden" name="proveedor_id" value="{{ proveedor.id }}">
@@ -158,5 +158,9 @@
     </div>
 </div>
 {% endfor %}
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
 {% endblock %}
 

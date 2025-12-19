@@ -1,0 +1,494 @@
+{% load static %}
+
+<!-- Botón flotante de ayuda -->
+<div class="ayuda-flotante" id="ayuda-flotante">
+    <button type="button" 
+            class="btn btn-info btn-lg rounded-circle shadow-lg" 
+            data-bs-toggle="modal" 
+            data-bs-target="#modalAyuda"
+            style="width: 60px; height: 60px; position: fixed; bottom: 30px; right: 30px; z-index: 1050; background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); border: none; box-shadow: 0 4px 15px rgba(23, 162, 184, 0.4); transition: all 0.3s ease;"
+            onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 6px 20px rgba(23, 162, 184, 0.6)'"
+            onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 15px rgba(23, 162, 184, 0.4)'"
+            title="Ayuda">
+        <i class="bi bi-question-circle-fill" style="font-size: 1.8rem; color: white;"></i>
+    </button>
+</div>
+
+<!-- Modal de Ayuda -->
+<div class="modal fade" id="modalAyuda" tabindex="-1" aria-labelledby="modalAyudaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="modalAyudaLabel">
+                    <i class="bi bi-question-circle-fill"></i> Ayuda - STOCKEX
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body" id="contenido-ayuda">
+                <!-- El contenido se carga dinámicamente según la página -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle"></i> Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Contenido de ayuda por página
+const ayudaPorPagina = {
+    'inicio': {
+        titulo: 'Página Principal',
+        contenido: `
+            <h6><i class="bi bi-house-door"></i> Bienvenido a STOCKEX</h6>
+            <p>Esta es la página principal donde puedes ver todos los productos disponibles.</p>
+            
+            <h6 class="mt-3"><i class="bi bi-search"></i> Búsqueda de Productos</h6>
+            <ul>
+                <li>Escribe el nombre del producto en la barra de búsqueda</li>
+                <li>La búsqueda funciona incluso sin tildes (ej: "cafe" encuentra "café")</li>
+                <li>Puedes buscar por nombre, SKU o descripción</li>
+            </ul>
+            
+            <h6 class="mt-3"><i class="bi bi-funnel"></i> Filtros</h6>
+            <ul>
+                <li><strong>Categoría:</strong> Filtra productos por categoría</li>
+                <li><strong>Precio:</strong> Establece rango de precios mínimo y máximo</li>
+                <li><strong>Stock Bajo:</strong> Muestra solo productos con stock bajo</li>
+                <li><strong>Con/Sin Imagen:</strong> Filtra por productos con o sin imagen</li>
+            </ul>
+            
+            <h6 class="mt-3"><i class="bi bi-sort-down"></i> Ordenamiento</h6>
+            <p>Puedes ordenar los productos por:</p>
+            <ul>
+                <li>Nombre (A-Z o Z-A)</li>
+                <li>Precio (menor a mayor o viceversa)</li>
+                <li>Stock (menor a mayor o viceversa)</li>
+                <li>Fecha de creación</li>
+            </ul>
+            
+            <h6 class="mt-3"><i class="bi bi-eye"></i> Vista</h6>
+            <p>Cambia entre vista de cuadrícula (grid) o lista según tu preferencia.</p>
+        `
+    },
+    'punto_venta': {
+        titulo: 'Punto de Venta (POS)',
+        contenido: `
+            <h6><i class="bi bi-cash-register"></i> Sistema de Ventas</h6>
+            <p>Aquí puedes procesar ventas rápidamente usando un lector de código de barras o búsqueda manual.</p>
+            
+            <h6 class="mt-3"><i class="bi bi-upc-scan"></i> Escanear Código</h6>
+            <ul>
+                <li>Usa un lector de código de barras USB conectado a tu PC</li>
+                <li>O escribe el código manualmente en el campo</li>
+                <li>El producto se agregará automáticamente al carrito</li>
+                <li><strong>Atajos:</strong> F1 (Nueva venta), F2 (Procesar), F3 (Enfocar campo)</li>
+            </ul>
+            
+            <h6 class="mt-3"><i class="bi bi-cart-plus"></i> Agregar Productos</h6>
+            <ul>
+                <li>Escanea el código de barras del producto</li>
+                <li>O busca el producto manualmente y haz clic en él</li>
+                <li>Los productos recientes aparecen abajo para acceso rápido</li>
+                <li>Puedes modificar la cantidad con los botones + y -</li>
+            </ul>
+            
+            <h6 class="mt-3"><i class="bi bi-percent"></i> Descuentos</h6>
+            <ul>
+                <li>Puedes aplicar descuentos en <strong>monto fijo ($)</strong> o <strong>porcentaje (%)</strong></li>
+                <li>Selecciona el tipo con los botones $ o %</li>
+                <li>Ingresa el valor del descuento</li>
+                <li>El total se actualiza automáticamente</li>
+            </ul>
+            
+            <h6 class="mt-3"><i class="bi bi-credit-card"></i> Procesar Venta</h6>
+            <ol>
+                <li>Agrega todos los productos al carrito</li>
+                <li>Selecciona el método de pago (Efectivo, Tarjeta, Transferencia o Mixto)</li>
+                <li>Si es efectivo, ingresa el monto recibido</li>
+                <li>El <strong>vuelto</strong> se calcula automáticamente y se muestra en grande</li>
+                <li>Haz clic en <strong>"Procesar"</strong> para finalizar la venta</li>
+                <li>Después de procesar, podrás imprimir el ticket si lo deseas</li>
+            </ol>
+            
+            <div class="alert alert-info mt-3">
+                <i class="bi bi-info-circle"></i> <strong>Tip:</strong> El carrito se limpia automáticamente después de cada venta para que puedas iniciar una nueva rápidamente.
+            </div>
+        `
+    },
+    'dashboard': {
+        titulo: 'Dashboard Administrativo',
+        contenido: `
+            <h6><i class="bi bi-speedometer2"></i> Panel de Control</h6>
+            <p>El dashboard te muestra estadísticas importantes de tu inventario.</p>
+            
+            <h6 class="mt-3"><i class="bi bi-box-seam"></i> Estadísticas Principales</h6>
+            <ul>
+                <li><strong>Total de Productos:</strong> Cantidad total en el sistema</li>
+                <li><strong>Productos Activos:</strong> Productos visibles para venta</li>
+                <li><strong>Stock Bajo:</strong> Productos que necesitan reposición</li>
+                <li><strong>Valor del Inventario:</strong> Valor total calculado (precio × stock)</li>
+            </ul>
+            
+            <h6 class="mt-3"><i class="bi bi-pie-chart"></i> Productos por Categoría</h6>
+            <p>Visualiza la distribución de productos por categoría para entender mejor tu inventario.</p>
+            
+            <h6 class="mt-3"><i class="bi bi-exclamation-triangle"></i> Productos con Stock Bajo</h6>
+            <p>Lista de productos que están por debajo de su stock mínimo. Es importante reponerlos pronto.</p>
+            
+            <h6 class="mt-3"><i class="bi bi-clock-history"></i> Cambios Recientes</h6>
+            <p>Historial de las últimas modificaciones realizadas en productos (creación, edición, cambios de stock).</p>
+        `
+    },
+    'agregar_producto': {
+        titulo: 'Agregar Producto',
+        contenido: `
+            <h6><i class="bi bi-plus-circle"></i> Crear Nuevo Producto</h6>
+            <p>Completa el formulario para agregar un nuevo producto al inventario.</p>
+            
+            <h6 class="mt-3"><i class="bi bi-info-square"></i> Campos Obligatorios</h6>
+            <ul>
+                <li><strong>Nombre:</strong> Nombre del producto (mínimo 2 caracteres)</li>
+                <li><strong>Precio de Venta:</strong> Precio al que se vende el producto (debe ser mayor a 0)</li>
+                <li><strong>Stock:</strong> Cantidad inicial en inventario</li>
+            </ul>
+            
+            <h6 class="mt-3"><i class="bi bi-tag"></i> Campos Opcionales</h6>
+            <ul>
+                <li><strong>SKU/Código de Barras:</strong> Si no lo ingresas, se genera automáticamente</li>
+                <li><strong>Precio de Compra:</strong> Útil para calcular márgenes de ganancia</li>
+                <li><strong>Precio Promo:</strong> Precio promocional (si aplica)</li>
+                <li><strong>Categoría:</strong> Organiza tus productos</li>
+                <li><strong>Descripción:</strong> Información adicional del producto</li>
+                <li><strong>Imagen:</strong> Foto del producto (se optimiza automáticamente)</li>
+            </ul>
+            
+            <h6 class="mt-3"><i class="bi bi-shield-check"></i> Validaciones</h6>
+            <ul>
+                <li>El precio de venta no puede ser menor al precio de compra</li>
+                <li>El stock y stock mínimo no pueden ser negativos</li>
+                <li>La imagen se redimensiona automáticamente si es muy grande</li>
+            </ul>
+            
+            <div class="alert alert-success mt-3">
+                <i class="bi bi-lightbulb"></i> <strong>Tip:</strong> Completa todos los campos para tener un mejor control de tu inventario.
+            </div>
+        `
+    },
+    'listar_ventas': {
+        titulo: 'Historial de Ventas',
+        contenido: `
+            <h6><i class="bi bi-receipt"></i> Gestión de Ventas</h6>
+            <p>Aquí puedes ver todas las ventas realizadas en el sistema.</p>
+            
+            <h6 class="mt-3"><i class="bi bi-funnel"></i> Filtros Disponibles</h6>
+            <ul>
+                <li><strong>Fecha Desde/Hasta:</strong> Filtra ventas por rango de fechas</li>
+                <li><strong>Método de Pago:</strong> Filtra por tipo de pago (Efectivo, Tarjeta, etc.)</li>
+                <li><strong>Número de Venta:</strong> Busca una venta específica</li>
+            </ul>
+            
+            <h6 class="mt-3"><i class="bi bi-eye"></i> Ver Detalles</h6>
+            <p>Haz clic en cualquier venta para ver sus detalles completos, incluyendo:</p>
+            <ul>
+                <li>Productos vendidos</li>
+                <li>Cantidades y precios</li>
+                <li>Descuentos aplicados</li>
+                <li>Método de pago</li>
+                <li>Vendedor</li>
+            </ul>
+            
+            <h6 class="mt-3"><i class="bi bi-printer"></i> Imprimir Ticket</h6>
+            <p>Desde el detalle de la venta puedes imprimir el ticket de la venta.</p>
+            
+            <div class="alert alert-warning mt-3">
+                <i class="bi bi-exclamation-triangle"></i> <strong>Importante:</strong> Solo los administradores pueden ver todas las ventas. Los usuarios normales solo ven sus propias ventas.
+            </div>
+        `
+    },
+    'gestionar_categorias': {
+        titulo: 'Gestionar Categorías',
+        contenido: `
+            <h6><i class="bi bi-tags"></i> Administración de Categorías</h6>
+            <p>Las categorías te ayudan a organizar tus productos de manera eficiente.</p>
+            
+            <h6 class="mt-3"><i class="bi bi-plus-circle"></i> Crear Categoría</h6>
+            <ol>
+                <li>Ingresa el nombre de la categoría</li>
+                <li>Opcionalmente, agrega una descripción</li>
+                <li>Selecciona un color para identificarla visualmente</li>
+                <li>Haz clic en "Crear Categoría"</li>
+            </ol>
+            
+            <h6 class="mt-3"><i class="bi bi-pencil"></i> Editar Categoría</h6>
+            <p>Haz clic en el botón de editar junto a la categoría que quieres modificar.</p>
+            
+            <h6 class="mt-3"><i class="bi bi-trash"></i> Eliminar Categoría</h6>
+            <p>Puedes eliminar categorías que no tengan productos asociados.</p>
+            
+            <div class="alert alert-info mt-3">
+                <i class="bi bi-info-circle"></i> <strong>Nota:</strong> Los productos con esta categoría no se eliminarán, solo se quitará la categoría.
+            </div>
+        `
+    },
+    'reportes_avanzados': {
+        titulo: 'Reportes Avanzados',
+        contenido: `
+            <h6><i class="bi bi-graph-up"></i> Análisis de Datos</h6>
+            <p>Los reportes te ayudan a entender mejor tu negocio y tomar decisiones informadas.</p>
+            
+            <h6 class="mt-3"><i class="bi bi-calendar-range"></i> Seleccionar Período</h6>
+            <p>Elige el rango de fechas para el cual quieres ver las estadísticas.</p>
+            
+            <h6 class="mt-3"><i class="bi bi-cash-stack"></i> Estadísticas de Ventas</h6>
+            <ul>
+                <li><strong>Total de Ventas:</strong> Suma de todas las ventas en el período</li>
+                <li><strong>Cantidad de Ventas:</strong> Número total de transacciones</li>
+                <li><strong>Ventas por Método de Pago:</strong> Distribución de pagos</li>
+            </ul>
+            
+            <h6 class="mt-3"><i class="bi bi-trophy"></i> Productos Más Vendidos</h6>
+            <p>Lista de los productos que más se han vendido en el período seleccionado.</p>
+            
+            <h6 class="mt-3"><i class="bi bi-download"></i> Exportar Datos</h6>
+            <p>Puedes exportar los reportes en formato Excel, PDF o CSV para análisis externos.</p>
+        `
+    },
+    'graficos_ventas': {
+        titulo: 'Gráficos de Ventas',
+        contenido: `
+            <h6><i class="bi bi-bar-chart"></i> Visualización de Ventas</h6>
+            <p>Los gráficos te permiten visualizar las tendencias de ventas de manera intuitiva.</p>
+            
+            <h6 class="mt-3"><i class="bi bi-calendar"></i> Seleccionar Período</h6>
+            <ul>
+                <li><strong>Predefinidos:</strong> Día, Semana, Mes, Semestre, Año</li>
+                <li><strong>Personalizado:</strong> Selecciona un rango de fechas específico</li>
+            </ul>
+            
+            <h6 class="mt-3"><i class="bi bi-graph-up-arrow"></i> Tipos de Gráficos</h6>
+            <ul>
+                <li><strong>Total de Ventas:</strong> Línea que muestra la evolución de ventas en el tiempo</li>
+                <li><strong>Cantidad de Ventas:</strong> Número de transacciones realizadas</li>
+                <li><strong>Métodos de Pago:</strong> Distribución porcentual de formas de pago</li>
+                <li><strong>Productos Top:</strong> Los productos más vendidos</li>
+            </ul>
+            
+            <div class="alert alert-success mt-3">
+                <i class="bi bi-lightbulb"></i> <strong>Tip:</strong> Usa estos gráficos para identificar tendencias y planificar mejor tu inventario.
+            </div>
+        `
+    },
+    'movimientos_stock': {
+        titulo: 'Movimientos de Stock',
+        contenido: `
+            <h6><i class="bi bi-arrow-left-right"></i> Control de Inventario</h6>
+            <p>Registra todos los movimientos de stock para mantener un control preciso de tu inventario.</p>
+            
+            <h6 class="mt-3"><i class="bi bi-box-arrow-in-down"></i> Tipos de Movimiento</h6>
+            <ul>
+                <li><strong>Entrada:</strong> Cuando recibes productos (compra, devolución)</li>
+                <li><strong>Salida:</strong> Cuando sales productos (venta, pérdida)</li>
+                <li><strong>Ajuste:</strong> Corrección de inventario</li>
+                <li><strong>Pérdida:</strong> Productos dañados o vencidos</li>
+                <li><strong>Devolución:</strong> Productos devueltos por clientes</li>
+            </ul>
+            
+            <h6 class="mt-3"><i class="bi bi-file-text"></i> Registrar Movimiento</h6>
+            <ol>
+                <li>Ve al producto que quieres modificar</li>
+                <li>Haz clic en el botón de movimiento</li>
+                <li>Selecciona el tipo de movimiento</li>
+                <li>Ingresa la cantidad</li>
+                <li>Selecciona el motivo</li>
+                <li>Agrega notas si es necesario</li>
+                <li>Confirma el movimiento</li>
+            </ol>
+            
+            <h6 class="mt-3"><i class="bi bi-clock-history"></i> Historial</h6>
+            <p>Todos los movimientos quedan registrados con fecha, usuario y motivo para auditoría.</p>
+        `
+    },
+    'dashboard_usuario': {
+        titulo: 'Mi Dashboard',
+        contenido: `
+            <h6><i class="bi bi-person-circle"></i> Panel de Usuario</h6>
+            <p>Bienvenido a tu panel personal. Aquí puedes ver un resumen de tu actividad.</p>
+            
+            <h6 class="mt-3"><i class="bi bi-cart-check"></i> Mis Ventas</h6>
+            <p>Visualiza un resumen de las ventas que has realizado:</p>
+            <ul>
+                <li>Total de ventas realizadas</li>
+                <li>Monto total vendido</li>
+                <li>Ventas del día actual</li>
+            </ul>
+            
+            <h6 class="mt-3"><i class="bi bi-heart"></i> Mis Favoritos</h6>
+            <p>Acceso rápido a tus productos favoritos para ventas más rápidas.</p>
+            
+            <h6 class="mt-3"><i class="bi bi-clock-history"></i> Actividad Reciente</h6>
+            <p>Revisa tus últimas acciones en el sistema.</p>
+            
+            <div class="alert alert-info mt-3">
+                <i class="bi bi-info-circle"></i> <strong>Nota:</strong> Este panel muestra solo tu información personal. Para ver estadísticas generales, contacta al administrador.
+            </div>
+        `
+    },
+    'cotizaciones': {
+        titulo: 'Gestión de Cotizaciones',
+        contenido: `
+            <h6><i class="bi bi-file-earmark-text"></i> Sistema de Cotizaciones</h6>
+            <p>Las cotizaciones te permiten preparar presupuestos para tus clientes antes de realizar la venta.</p>
+            
+            <h6 class="mt-3"><i class="bi bi-plus-circle"></i> Crear Cotización</h6>
+            <ol>
+                <li>Haz clic en "Nueva Cotización"</li>
+                <li>Busca y agrega los productos que el cliente necesita</li>
+                <li>Completa los datos del cliente (nombre es obligatorio)</li>
+                <li>Establece la fecha de vencimiento de la cotización</li>
+                <li>Opcionalmente, aplica un descuento</li>
+                <li>Agrega notas si es necesario</li>
+                <li>Haz clic en "Crear Cotización"</li>
+            </ol>
+            
+            <h6 class="mt-3"><i class="bi bi-funnel"></i> Filtrar Cotizaciones</h6>
+            <p>Puedes filtrar las cotizaciones por:</p>
+            <ul>
+                <li><strong>Estado:</strong> Pendiente, Aprobada, Rechazada, Vencida</li>
+                <li><strong>Cliente:</strong> Buscar por nombre del cliente</li>
+                <li><strong>Número:</strong> Buscar por número de cotización</li>
+                <li><strong>Fecha:</strong> Filtrar por rango de fechas</li>
+            </ul>
+            
+            <h6 class="mt-3"><i class="bi bi-cash-register"></i> Convertir en Venta</h6>
+            <p>Cuando el cliente aprueba la cotización:</p>
+            <ol>
+                <li>Ve al detalle de la cotización</li>
+                <li>Haz clic en "Convertir en Venta"</li>
+                <li>El sistema descontará automáticamente el stock</li>
+                <li>Se creará una venta con los mismos productos y precios</li>
+            </ol>
+            
+            <h6 class="mt-3"><i class="bi bi-printer"></i> Imprimir Cotización</h6>
+            <p>Puedes generar un PDF profesional de la cotización para enviar al cliente.</p>
+            
+            <h6 class="mt-3"><i class="bi bi-calendar-x"></i> Fechas de Vencimiento</h6>
+            <p>Las cotizaciones tienen una fecha de vencimiento. Una vez vencidas, se marcan automáticamente como "Vencidas".</p>
+            
+            <div class="alert alert-warning mt-3">
+                <i class="bi bi-exclamation-triangle"></i> <strong>Importante:</strong> Los usuarios normales solo pueden ver sus propias cotizaciones. Los administradores ven todas.
+            </div>
+        `
+    }
+};
+
+// Función para cargar ayuda según la página actual
+function cargarAyuda() {
+    const path = window.location.pathname;
+    let pagina = 'inicio'; // Por defecto
+    
+    // Identificar la página actual
+    if (path.includes('/pos/') || path.includes('punto_venta')) {
+        pagina = 'punto_venta';
+    } else if (path.includes('/dashboard/') && !path.includes('usuario')) {
+        pagina = 'dashboard';
+    } else if (path.includes('/dashboard-usuario/')) {
+        pagina = 'dashboard_usuario';
+    } else if (path.includes('/agregar-producto/')) {
+        pagina = 'agregar_producto';
+    } else if (path.includes('/ventas/') && !path.includes('ticket')) {
+        pagina = 'listar_ventas';
+    } else if (path.includes('/categorias/')) {
+        pagina = 'gestionar_categorias';
+    } else if (path.includes('/reportes/')) {
+        pagina = 'reportes_avanzados';
+    } else if (path.includes('/graficos-ventas/')) {
+        pagina = 'graficos_ventas';
+    } else if (path.includes('/movimientos/')) {
+        pagina = 'movimientos_stock';
+    } else if (path.includes('/editar-producto/')) {
+        pagina = 'agregar_producto'; // Misma ayuda que agregar
+    } else if (path.includes('/detalle-producto/')) {
+        pagina = 'inicio'; // Ayuda de inicio
+    } else if (path.includes('/listar-facturas/')) {
+        pagina = 'inicio'; // Ayuda genérica
+    } else if (path.includes('/gestionar-backups/')) {
+        pagina = 'inicio'; // Ayuda genérica
+    } else if (path.includes('/listar-usuarios/')) {
+        pagina = 'inicio'; // Ayuda genérica
+    } else if (path.includes('/mis-favoritos/')) {
+        pagina = 'dashboard_usuario'; // Similar a dashboard usuario
+    } else if (path.includes('/cotizaciones/')) {
+        pagina = 'cotizaciones';
+    } else if (path.includes('/facturas/') || path.includes('/subir-factura/')) {
+        pagina = 'facturas';
+    } else if (path.includes('/backup/') || path.includes('/gestionar-backups/')) {
+        pagina = 'backups';
+    } else if (path.includes('/usuarios/') || path.includes('/crear-usuario/')) {
+        pagina = 'usuarios';
+    } else if (path.includes('/proveedores/')) {
+        pagina = 'inicio'; // Ayuda genérica
+    } else if (path.includes('/imprimir/')) {
+        pagina = 'inicio'; // Ayuda genérica
+    }
+    
+    // Cargar contenido de ayuda
+    const ayuda = ayudaPorPagina[pagina] || ayudaPorPagina['inicio'];
+    document.getElementById('contenido-ayuda').innerHTML = ayuda.contenido;
+    
+    // Actualizar título del modal
+    const modalTitle = document.querySelector('#modalAyudaLabel');
+    if (modalTitle) {
+        modalTitle.innerHTML = `<i class="bi bi-question-circle-fill"></i> Ayuda - ${ayuda.titulo}`;
+    }
+}
+
+// Cargar ayuda cuando se abre el modal
+document.addEventListener('DOMContentLoaded', function() {
+    const modalAyuda = document.getElementById('modalAyuda');
+    if (modalAyuda) {
+        modalAyuda.addEventListener('show.bs.modal', cargarAyuda);
+    }
+});
+</script>
+
+<style>
+.ayuda-flotante {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 1050;
+}
+
+.ayuda-flotante button:hover {
+    animation: pulse-ayuda 1s infinite;
+}
+
+@keyframes pulse-ayuda {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+@media (max-width: 768px) {
+    .ayuda-flotante {
+        bottom: 20px;
+        right: 20px;
+    }
+    
+    .ayuda-flotante button {
+        width: 50px !important;
+        height: 50px !important;
+    }
+    
+    .ayuda-flotante button i {
+        font-size: 1.5rem !important;
+    }
+}
+</style>
+

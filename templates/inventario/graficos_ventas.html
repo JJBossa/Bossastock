@@ -1,0 +1,414 @@
+{% extends 'base.html' %}
+
+{% block title %}Gráficos de Ventas - STOCKEX{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+    .chart-container {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .periodo-selector {
+        background: white;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .btn-periodo {
+        margin: 5px;
+        border-radius: 6px;
+        transition: all 0.3s ease;
+    }
+    .btn-periodo.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Gráficos de Ventas</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-graph-up text-primary"></i> Análisis de Ventas</h2>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Volver al Dashboard
+    </a>
+</div>
+
+<!-- Selector de Período -->
+<div class="periodo-selector">
+    <h5 class="mb-3"><i class="bi bi-calendar-range"></i> Seleccionar Período</h5>
+    
+    <!-- Períodos Predefinidos -->
+    <div class="mb-3">
+        <label class="form-label small text-muted">Períodos Rápidos:</label>
+        <div class="d-flex flex-wrap">
+            <a href="?periodo=dia" class="btn btn-periodo {% if periodo == 'dia' %}active{% else %}btn-outline-primary{% endif %}">
+                <i class="bi bi-calendar-day"></i> Últimos 30 Días
+            </a>
+            <a href="?periodo=semana" class="btn btn-periodo {% if periodo == 'semana' %}active{% else %}btn-outline-primary{% endif %}">
+                <i class="bi bi-calendar-week"></i> Últimas 12 Semanas
+            </a>
+            <a href="?periodo=mes" class="btn btn-periodo {% if periodo == 'mes' %}active{% else %}btn-outline-primary{% endif %}">
+                <i class="bi bi-calendar-month"></i> Últimos 12 Meses
+            </a>
+            <a href="?periodo=semestre" class="btn btn-periodo {% if periodo == 'semestre' %}active{% else %}btn-outline-primary{% endif %}">
+                <i class="bi bi-calendar-range"></i> Últimos 4 Semestres
+            </a>
+            <a href="?periodo=año" class="btn btn-periodo {% if periodo == 'año' %}active{% else %}btn-outline-primary{% endif %}">
+                <i class="bi bi-calendar"></i> Últimos 5 Años
+            </a>
+        </div>
+    </div>
+    
+    <!-- Rango Personalizado -->
+    <div class="border-top pt-3">
+        <label class="form-label small text-muted">Rango Personalizado:</label>
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="fecha_desde" class="form-label small">Desde:</label>
+                <input type="date" 
+                       class="form-control" 
+                       id="fecha_desde" 
+                       name="fecha_desde" 
+                       value="{{ fecha_desde }}"
+                       required>
+            </div>
+            <div class="col-md-4">
+                <label for="fecha_hasta" class="form-label small">Hasta:</label>
+                <input type="date" 
+                       class="form-control" 
+                       id="fecha_hasta" 
+                       name="fecha_hasta" 
+                       value="{{ fecha_hasta }}"
+                       required>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Aplicar Rango
+                </button>
+            </div>
+        </form>
+        {% if periodo == 'personalizado' %}
+        <div class="mt-2">
+            <small class="text-success">
+                <i class="bi bi-check-circle"></i> Rango personalizado activo: 
+                {{ fecha_desde|date:"d/m/Y" }} - {{ fecha_hasta|date:"d/m/Y" }}
+            </small>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Estadísticas Resumen -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="stats-card">
+            <h5><i class="bi bi-currency-dollar"></i> Total Ventas</h5>
+            <h2>${{ total_ventas_periodo|floatformat:0 }}</h2>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stats-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <h5><i class="bi bi-receipt"></i> Cantidad de Ventas</h5>
+            <h2>{{ cantidad_ventas_periodo }}</h2>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stats-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <h5><i class="bi bi-calculator"></i> Promedio por Venta</h5>
+            <h2>${{ promedio_venta|floatformat:0 }}</h2>
+        </div>
+    </div>
+</div>
+
+<!-- Gráfico de Ventas en el Tiempo -->
+<div class="chart-container">
+    <h5 class="mb-3"><i class="bi bi-bar-chart-line"></i> Ventas en el Tiempo</h5>
+    <canvas id="ventasChart" height="80"></canvas>
+</div>
+
+<!-- Gráfico de Cantidad de Ventas -->
+<div class="chart-container">
+    <h5 class="mb-3"><i class="bi bi-graph-up-arrow"></i> Cantidad de Ventas</h5>
+    <canvas id="cantidadChart" height="80"></canvas>
+</div>
+
+<!-- Gráfico de Métodos de Pago -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="bi bi-credit-card"></i> Ventas por Método de Pago</h5>
+            <canvas id="metodoPagoChart"></canvas>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="bi bi-star"></i> Top 10 Productos Más Vendidos</h5>
+            <canvas id="productosChart"></canvas>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Configuración común de Chart.js
+    Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+    Chart.defaults.font.size = 12;
+    Chart.defaults.color = '#666';
+    
+    const labels = JSON.parse('{{ labels|escapejs }}');
+    const datosVentas = JSON.parse('{{ datos_ventas|escapejs }}');
+    const datosCantidad = JSON.parse('{{ datos_cantidad|escapejs }}');
+    
+    // Gráfico de Ventas en el Tiempo
+    const ventasCtx = document.getElementById('ventasChart').getContext('2d');
+    new Chart(ventasCtx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Total Ventas ($)',
+                data: datosVentas,
+                borderColor: 'rgb(102, 126, 234)',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                pointBackgroundColor: 'rgb(102, 126, 234)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            return 'Total: $' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Ventas (USD)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Período'
+                    }
+                }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            }
+        }
+    });
+    
+    // Gráfico de Cantidad de Ventas (Line Chart)
+    const cantidadCtx = document.getElementById('cantidadChart').getContext('2d');
+    new Chart(cantidadCtx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Cantidad de Ventas',
+                data: datosCantidad,
+                borderColor: 'rgb(245, 87, 108)',
+                backgroundColor: 'rgba(245, 87, 108, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                pointBackgroundColor: 'rgb(245, 87, 108)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            return 'Cantidad: ' + context.parsed.y + ' ventas';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1,
+                        precision: 0
+                    },
+                    title: {
+                        display: true,
+                        text: 'Cantidad de Ventas'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Período'
+                    }
+                }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            }
+        }
+    });
+    
+    // Gráfico de Métodos de Pago
+    const metodoPagoData = {
+        labels: [
+            {% for metodo in ventas_por_metodo %}
+            '{{ metodo.metodo_pago|capfirst }}',
+            {% endfor %}
+        ],
+        datasets: [{
+            data: [
+                {% for metodo in ventas_por_metodo %}
+                {{ metodo.total }},
+                {% endfor %}
+            ],
+            backgroundColor: [
+                'rgba(102, 126, 234, 0.8)',
+                'rgba(245, 87, 108, 0.8)',
+                'rgba(75, 192, 192, 0.8)',
+                'rgba(255, 206, 86, 0.8)',
+            ],
+            borderWidth: 2
+        }]
+    };
+    
+    const metodoPagoCtx = document.getElementById('metodoPagoChart').getContext('2d');
+    new Chart(metodoPagoCtx, {
+        type: 'doughnut',
+        data: metodoPagoData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return context.label + ': $' + context.parsed.toLocaleString() + ' (' + percentage + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Gráfico de Top Productos
+    const productosData = {
+        labels: [
+            {% for producto in top_productos %}
+            '{{ producto.producto__nombre|truncatewords:3 }}',
+            {% endfor %}
+        ],
+        datasets: [{
+            label: 'Cantidad Vendida',
+            data: [
+                {% for producto in top_productos %}
+                {{ producto.total_vendido }},
+                {% endfor %}
+            ],
+            backgroundColor: 'rgba(75, 192, 192, 0.8)',
+            borderColor: 'rgb(75, 192, 192)',
+            borderWidth: 2
+        }]
+    };
+    
+    const productosCtx = document.getElementById('productosChart').getContext('2d');
+    new Chart(productosCtx, {
+        type: 'bar',
+        data: productosData,
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
+{% endblock %}
+

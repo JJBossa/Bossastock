@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+
+{% block title %}Venta {{ venta.numero_venta }} - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'listar_ventas' %}">Ventas</a></li>
+        <li class="breadcrumb-item active">{{ venta.numero_venta }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-receipt text-primary"></i> Venta {{ venta.numero_venta }}</h2>
+    <div>
+        {% if not venta.cancelada %}
+        <div class="btn-group me-2" role="group">
+            <a href="{% url 'imprimir_ticket_venta' venta.id %}?tipo=termica" class="btn btn-primary" target="_blank" title="Impresora Térmica 58mm">
+                <i class="bi bi-printer"></i> Térmica
+            </a>
+            <a href="{% url 'imprimir_ticket_venta' venta.id %}?tipo=a4" class="btn btn-outline-primary" target="_blank" title="Formato A4">
+                <i class="bi bi-file-pdf"></i> A4
+            </a>
+        </div>
+        {% if es_admin or venta.usuario == request.user %}
+        <button class="btn btn-danger me-2" onclick="cancelarVenta({{ venta.id }}, '{{ venta.numero_venta }}')">
+            <i class="bi bi-x-circle"></i> Cancelar Venta
+        </button>
+        {% endif %}
+        {% endif %}
+        <a href="{% url 'listar_ventas' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-list-ul"></i> Items de la Venta</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Cantidad</th>
+                                <th>Producto</th>
+                                <th>Precio Unit.</th>
+                                <th>Subtotal</th>
+                                <th>Stock Antes</th>
+                                <th>Stock Después</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ item.cantidad }}</td>
+                                <td>
+                                    <strong>{{ item.nombre_producto }}</strong>
+                                    {% if item.producto %}
+                                    <br><small class="text-muted">SKU: {{ item.producto.sku|default:"-" }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>${{ item.precio_unitario|floatformat:0 }}</td>
+                                <td><strong>${{ item.subtotal|floatformat:0 }}</strong></td>
+                                <td>{{ item.stock_anterior }}</td>
+                                <td>
+                                    {% if item.stock_despues < item.stock_anterior %}
+                                    <span class="badge bg-warning">{{ item.stock_despues }}</span>
+                                    {% else %}
+                                    <span class="badge bg-success">{{ item.stock_despues }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="3">Subtotal</th>
+                                <th>${{ venta.subtotal|floatformat:0 }}</th>
+                                <th colspan="2"></th>
+                            </tr>
+                            {% if venta.descuento > 0 %}
+                            <tr>
+                                <th colspan="3">Descuento</th>
+                                <th class="text-danger">-${{ venta.descuento|floatformat:0 }}</th>
+                                <th colspan="2"></th>
+                            </tr>
+                            {% endif %}
+                            <tr class="table-primary">
+                                <th colspan="3">TOTAL</th>
+                                <th>${{ venta.total|floatformat:0 }}</th>
+                                <th colspan="2"></th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Información</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <th>Fecha:</th>
+                        <td>{{ venta.fecha|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Vendedor:</th>
+                        <td>{{ venta.usuario.username|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Método de Pago:</th>
+                        <td>{{ venta.get_metodo_pago_display }}</td>
+                    </tr>
+                    {% if venta.metodo_pago == 'efectivo' or venta.metodo_pago == 'mixto' %}
+                    <tr>
+                        <th>Monto Recibido:</th>
+                        <td>${{ venta.monto_recibido|floatformat:0 }}</td>
+                    </tr>
+                    <tr>
+                        <th>Cambio:</th>
+                        <td>${{ venta.cambio|floatformat:0 }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <th>Estado:</th>
+                        <td>
+                            {% if venta.cancelada %}
+                            <span class="badge bg-danger">Cancelada</span>
+                            {% else %}
+                            <span class="badge bg-success">Completada</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% if venta.notas %}
+                    <tr>
+                        <th>Notas:</th>
+                        <td>{{ venta.notas }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function cancelarVenta(ventaId, numeroVenta) {
+    if (!confirm(`¿Estás seguro de cancelar la venta ${numeroVenta}? Se restaurará el stock de los productos.`)) {
+        return;
+    }
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    const csrftoken = getCookie('csrftoken');
+    
+    fetch(`/ventas/${ventaId}/cancelar/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.mensaje);
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'No se pudo cancelar la venta'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al cancelar la venta');
+    });
+}
+</script>
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
+{% endblock %}
+

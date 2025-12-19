@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Usuario - STOCKEX{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-pencil"></i> Editar Usuario: {{ usuario.username }}</h2>
+    <a href="{% url 'listar_usuarios' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Volver a Usuarios
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Nombre de Usuario <span class="text-danger">*</span></label>
+                    <input type="text" 
+                           class="form-control" 
+                           name="username" 
+                           value="{{ usuario.username }}" 
+                           required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Email</label>
+                    <input type="email" 
+                           class="form-control" 
+                           name="email" 
+                           value="{{ usuario.email|default:'' }}" 
+                           placeholder="usuario@ejemplo.com">
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Nombre</label>
+                    <input type="text" 
+                           class="form-control" 
+                           name="first_name" 
+                           value="{{ usuario.first_name|default:'' }}" 
+                           placeholder="Juan">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Apellido</label>
+                    <input type="text" 
+                           class="form-control" 
+                           name="last_name" 
+                           value="{{ usuario.last_name|default:'' }}" 
+                           placeholder="Pérez">
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <div class="form-check">
+                        <input class="form-check-input" 
+                               type="checkbox" 
+                               name="is_active" 
+                               id="is_active"
+                               {% if usuario.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="is_active">
+                            <i class="bi bi-check-circle"></i> Usuario Activo
+                        </label>
+                        <small class="form-text text-muted d-block">
+                            Si está desactivado, el usuario no podrá iniciar sesión.
+                        </small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <div class="form-check">
+                        <input class="form-check-input" 
+                               type="checkbox" 
+                               name="is_staff" 
+                               id="is_staff"
+                               {% if usuario.is_staff %}checked{% endif %}>
+                        <label class="form-check-label" for="is_staff">
+                            <i class="bi bi-shield"></i> Staff (acceso al panel de administración)
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <div class="form-check">
+                        <input class="form-check-input" 
+                               type="checkbox" 
+                               name="is_superuser" 
+                               id="is_superuser"
+                               {% if usuario.is_superuser %}checked{% endif %}>
+                        <label class="form-check-label" for="is_superuser">
+                            <i class="bi bi-shield-check"></i> Superusuario (todos los permisos)
+                        </label>
+                    </div>
+                    <small class="form-text text-muted">
+                        ⚠️ Los superusuarios tienen acceso completo al sistema.
+                    </small>
+                </div>
+            </div>
+            
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> 
+                <strong>Nota:</strong> Para cambiar la contraseña, usa la opción "Resetear Contraseña" desde la lista de usuarios.
+            </div>
+            
+            <div class="d-flex justify-content-end gap-2">
+                <a href="{% url 'listar_usuarios' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i> Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

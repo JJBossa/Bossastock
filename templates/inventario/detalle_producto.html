@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ producto.nombre }} - Detalle{% endblock %}
+{% block title %}{{ producto.nombre }} - STOCKEX{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -46,10 +46,29 @@
                             {% endif %}
                         </td>
                     </tr>
+                    {% if producto.precio_compra %}
                     <tr>
-                        <th>Precio Unidad:</th>
+                        <th>Precio de Compra:</th>
+                        <td><strong>${{ producto.precio_compra|floatformat:0 }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th>Precio de Venta:</th>
                         <td><strong class="text-primary precio-destacado">${{ producto.precio|floatformat:0 }}</strong></td>
                     </tr>
+                    {% if producto.margen_ganancia %}
+                    <tr>
+                        <th>Margen de Ganancia:</th>
+                        <td><strong class="text-success">{{ producto.margen_ganancia|floatformat:1 }}%</strong> 
+                            <small class="text-muted">(${{ producto.ganancia_unitaria|floatformat:0 }} por unidad)</small>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% else %}
+                    <tr>
+                        <th>Precio de Venta:</th>
+                        <td><strong class="text-primary precio-destacado">${{ producto.precio|floatformat:0 }}</strong></td>
+                    </tr>
+                    {% endif %}
                     {% if producto.precio_promo %}
                     <tr>
                         <th>Precio Promo:</th>
@@ -161,5 +180,9 @@
         <i class="bi bi-arrow-left"></i> Volver al Inicio
     </a>
 </div>
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
 {% endblock %}
 

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Bossastock{% endblock %}
+{% block title %}STOCKEX{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
@@ -12,20 +12,52 @@
 </nav>
 
 {% if es_admin %}
-<div class="alert alert-info d-flex justify-content-between align-items-center" role="alert">
-    <div>
-        <i class="bi bi-shield-check"></i> <strong>Modo Administrador</strong> - Puedes editar y agregar productos
-    </div>
-    <div>
-        <a href="{% url 'dashboard' %}" class="btn btn-info btn-sm me-2">
-            <i class="bi bi-speedometer2"></i> Dashboard
-        </a>
-        <a href="{% url 'listar_facturas' %}" class="btn btn-success btn-sm me-2">
-            <i class="bi bi-receipt"></i> Facturas
-        </a>
-        <a href="{% url 'agregar_producto' %}" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus-circle"></i> Agregar Producto
-        </a>
+<div class="alert alert-info border-0 mb-4" role="alert" style="background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); border: 1px solid #93c5fd !important;">
+    <div class="d-flex justify-content-between align-items-center flex-wrap">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-shield-check-fill me-2" style="font-size: 1.5rem; color: #2563eb;"></i>
+            <div>
+                <strong style="color: #1e40af;">Modo Administrador</strong>
+                <small class="d-block text-muted">Puedes editar y agregar productos</small>
+            </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-2 mt-md-0">
+            <a href="{% url 'dashboard' %}" class="btn btn-info btn-sm">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+            <a href="{% url 'punto_venta' %}" class="btn btn-success btn-sm">
+                <i class="bi bi-cash-register"></i> Punto de Venta
+            </a>
+            <div class="dropdown">
+                <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-gear"></i> Administración
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{% url 'listar_usuarios' %}"><i class="bi bi-people text-warning"></i> Usuarios</a></li>
+                    <li><a class="dropdown-item" href="{% url 'gestionar_categorias' %}"><i class="bi bi-tags text-secondary"></i> Categorías</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{% url 'listar_facturas' %}"><i class="bi bi-receipt text-success"></i> Facturas</a></li>
+                    <li><a class="dropdown-item" href="{% url 'listar_cotizaciones' %}"><i class="bi bi-file-earmark-text text-info"></i> Cotizaciones</a></li>
+                    <li><a class="dropdown-item" href="{% url 'listar_movimientos' %}"><i class="bi bi-arrow-left-right text-info"></i> Movimientos</a></li>
+                    <li><a class="dropdown-item" href="{% url 'reportes_avanzados' %}"><i class="bi bi-graph-up text-primary"></i> Reportes</a></li>
+                    <li><a class="dropdown-item" href="{% url 'graficos_ventas' %}"><i class="bi bi-bar-chart-line text-primary"></i> Gráficos de Ventas</a></li>
+                </ul>
+            </div>
+            <div class="dropdown">
+                <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-tools"></i> Herramientas
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{% url 'imprimir_etiquetas' %}"><i class="bi bi-printer"></i> Imprimir Etiquetas</a></li>
+                    <li><a class="dropdown-item" href="{% url 'imprimir_lista_precios' %}"><i class="bi bi-file-earmark-pdf"></i> Lista de Precios</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{% url 'gestionar_backups' %}"><i class="bi bi-database"></i> Backups</a></li>
+                </ul>
+            </div>
+            <a href="{% url 'agregar_producto' %}" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-circle"></i> Agregar Producto
+            </a>
+        </div>
     </div>
 </div>
 {% endif %}
@@ -56,18 +88,31 @@
 </div>
 
 <div class="search-container">
-    <form method="get" action="{% url 'inicio' %}" class="row g-3">
+    <form method="get" action="{% url 'inicio' %}" class="row g-3" id="search-form">
         <div class="col-md-6">
             <div class="input-group input-group-lg">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
                 <input type="text" 
                        class="form-control" 
                        name="q" 
+                       id="search-input"
                        value="{{ query }}" 
-                       placeholder="Buscar por nombre, SKU o descripción...">
+                       placeholder="Buscar o escanear código de barras..."
+                       autofocus>
             </div>
+            <small class="text-muted">
+                <i class="bi bi-info-circle"></i> 
+                {% if es_admin %}
+                Escanea con lector de código de barras o presiona <kbd>F</kbd> para buscar
+                {% else %}
+                Escribe el nombre del producto o escanea su código de barras
+                {% endif %}
+            </small>
         </div>
         <div class="col-md-3">
+            <label class="form-label small text-muted d-block mb-1">
+                <i class="bi bi-tags"></i> Categoría
+            </label>
             <select name="categoria" class="form-select form-select-lg">
                 <option value="">Todas las categorías</option>
                 {% for cat in categorias %}
@@ -78,83 +123,117 @@
             </select>
         </div>
         <div class="col-md-3">
+            <label class="form-label small text-muted d-block mb-1">
+                <i class="bi bi-sort-down"></i> Ordenar por
+            </label>
             <select name="orden" class="form-select form-select-lg">
-                <option value="nombre_asc" {% if orden == 'nombre_asc' %}selected{% endif %}>Nombre A-Z</option>
-                <option value="nombre_desc" {% if orden == 'nombre_desc' %}selected{% endif %}>Nombre Z-A</option>
-                <option value="precio_asc" {% if orden == 'precio_asc' %}selected{% endif %}>Precio: Menor a Mayor</option>
-                <option value="precio_desc" {% if orden == 'precio_desc' %}selected{% endif %}>Precio: Mayor a Menor</option>
+                <option value="nombre_asc" {% if orden == 'nombre_asc' %}selected{% endif %}>Nombre (A-Z)</option>
+                <option value="nombre_desc" {% if orden == 'nombre_desc' %}selected{% endif %}>Nombre (Z-A)</option>
+                <option value="precio_asc" {% if orden == 'precio_asc' %}selected{% endif %}>Precio: Más Barato</option>
+                <option value="precio_desc" {% if orden == 'precio_desc' %}selected{% endif %}>Precio: Más Caro</option>
+                {% if es_admin %}
                 <option value="stock_asc" {% if orden == 'stock_asc' %}selected{% endif %}>Stock: Menor a Mayor</option>
                 <option value="stock_desc" {% if orden == 'stock_desc' %}selected{% endif %}>Stock: Mayor a Menor</option>
                 <option value="fecha_desc" {% if orden == 'fecha_desc' %}selected{% endif %}>Más Recientes</option>
-            </select>
-        </div>
-        
-        <div class="col-md-2">
-            <label class="form-label d-block"><i class="bi bi-layout-grid"></i> Vista</label>
-            <select name="vista" class="form-select form-select-lg">
-                <option value="grid" {% if vista == 'grid' %}selected{% endif %}>Cuadrícula</option>
-                <option value="lista" {% if vista == 'lista' %}selected{% endif %}>Lista</option>
+                {% endif %}
             </select>
         </div>
         
         <div class="col-12">
-            <button type="submit" class="btn btn-primary">
-                <i class="bi bi-search"></i> Buscar
-            </button>
-            <a href="{% url 'inicio' %}" class="btn btn-secondary">
-                <i class="bi bi-x-circle"></i> Limpiar Filtros
-            </a>
-            
-            <!-- Botón para mostrar/ocultar filtros avanzados -->
-            <button type="button" class="btn btn-outline-secondary ms-2" data-bs-toggle="collapse" data-bs-target="#filtrosAvanzados" aria-expanded="false" aria-controls="filtrosAvanzados">
-                <i class="bi bi-funnel"></i> Filtros Avanzados
-            </button>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Buscar
+                </button>
+                <a href="{% url 'inicio' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Limpiar
+                </a>
+                
+                {% if es_admin %}
+                <!-- Botón para mostrar/ocultar filtros avanzados (solo admin) -->
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#filtrosAvanzados" aria-expanded="false" aria-controls="filtrosAvanzados">
+                    <i class="bi bi-sliders"></i> Más filtros
+                </button>
+                {% endif %}
+                
+                <!-- Selector de vista compacto -->
+                <div class="btn-group" role="group" aria-label="Vista">
+                    <input type="radio" class="btn-check" name="vista" id="vistaGrid" value="grid" {% if vista == 'grid' %}checked{% endif %} onchange="this.form.submit()">
+                    <label class="btn btn-outline-secondary" for="vistaGrid" title="Cuadrícula">
+                        <i class="bi bi-grid-3x3-gap"></i>
+                    </label>
+                    <input type="radio" class="btn-check" name="vista" id="vistaLista" value="lista" {% if vista == 'lista' %}checked{% endif %} onchange="this.form.submit()">
+                    <label class="btn btn-outline-secondary" for="vistaLista" title="Lista">
+                        <i class="bi bi-list-ul"></i>
+                    </label>
+                </div>
+                
+                {% if es_admin %}
+                <!-- Menú desplegable para exportar -->
+                <div class="dropdown">
+                    <button class="btn btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-download"></i> Exportar
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{% url 'exportar_excel' %}"><i class="bi bi-file-earmark-excel text-success"></i> Excel (.xlsx)</a></li>
+                        <li><a class="dropdown-item" href="{% url 'exportar_pdf' %}"><i class="bi bi-file-earmark-pdf text-danger"></i> PDF</a></li>
+                        <li><a class="dropdown-item" href="{% url 'exportar_csv' %}"><i class="bi bi-file-earmark-spreadsheet text-info"></i> CSV</a></li>
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
         </div>
         
         <!-- Filtros avanzados colapsables -->
-        <div class="collapse filtros-avanzados" id="filtrosAvanzados">
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label"><i class="bi bi-currency-dollar"></i> Precio Mínimo</label>
-                    <input type="number" name="precio_min" class="form-control" placeholder="Precio mínimo" value="{{ precio_min }}" step="0.01">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label"><i class="bi bi-currency-dollar"></i> Precio Máximo</label>
-                    <input type="number" name="precio_max" class="form-control" placeholder="Precio máximo" value="{{ precio_max }}" step="0.01">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label"><i class="bi bi-exclamation-triangle"></i> Stock</label>
-                    <select name="stock_bajo" class="form-select">
-                        <option value="">Todos</option>
-                        <option value="1" {% if stock_bajo == '1' %}selected{% endif %}>Solo Stock Bajo</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label"><i class="bi bi-image"></i> Imagen</label>
-                    <select name="con_imagen" class="form-select">
-                        <option value="">Todos</option>
-                        <option value="1" {% if con_imagen == '1' %}selected{% endif %}>Con Imagen</option>
-                        <option value="0" {% if con_imagen == '0' %}selected{% endif %}>Sin Imagen</option>
-                    </select>
+        <div class="collapse mt-3" id="filtrosAvanzados">
+            <div class="card card-body bg-light">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted"><i class="bi bi-currency-dollar"></i> Precio Mínimo</label>
+                        <input type="number" name="precio_min" class="form-control" placeholder="Min" value="{{ precio_min }}" step="1">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted"><i class="bi bi-currency-dollar"></i> Precio Máximo</label>
+                        <input type="number" name="precio_max" class="form-control" placeholder="Max" value="{{ precio_max }}" step="1">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted"><i class="bi bi-exclamation-triangle"></i> Stock</label>
+                        <select name="stock_bajo" class="form-select">
+                            <option value="">Todos</option>
+                            <option value="1" {% if stock_bajo == '1' %}selected{% endif %}>Solo Stock Bajo</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted"><i class="bi bi-image"></i> Imagen</label>
+                        <select name="con_imagen" class="form-select">
+                            <option value="">Todos</option>
+                            <option value="1" {% if con_imagen == '1' %}selected{% endif %}>Con Imagen</option>
+                            <option value="0" {% if con_imagen == '0' %}selected{% endif %}>Sin Imagen</option>
+                        </select>
+                    </div>
                 </div>
             </div>
-        </div>
-            {% if es_admin %}
-            <div class="btn-group ms-2">
-                <a href="{% url 'exportar_excel' %}" class="btn btn-success btn-sm">
-                    <i class="bi bi-file-earmark-excel"></i> Excel
-                </a>
-                <a href="{% url 'exportar_pdf' %}" class="btn btn-danger btn-sm">
-                    <i class="bi bi-file-earmark-pdf"></i> PDF
-                </a>
-                <a href="{% url 'exportar_csv' %}" class="btn btn-info btn-sm">
-                    <i class="bi bi-file-earmark-spreadsheet"></i> CSV
-                </a>
-            </div>
-            {% endif %}
         </div>
     </form>
 </div>
+
+{% if not es_admin and not query and not categoria_id %}
+<div class="alert alert-info border-0 shadow-sm mb-4">
+    <div class="d-flex align-items-start">
+        <div class="me-3">
+            <i class="bi bi-lightbulb" style="font-size: 2rem;"></i>
+        </div>
+        <div>
+            <h5 class="alert-heading mb-2"><i class="bi bi-info-circle"></i> ¿Cómo buscar productos?</h5>
+            <p class="mb-2">Es muy fácil encontrar lo que necesitas:</p>
+            <ul class="mb-0">
+                <li><strong>Por nombre:</strong> Escribe el nombre del producto en el cuadro de búsqueda</li>
+                <li><strong>Por código:</strong> Escanea el código de barras con el lector</li>
+                <li><strong>Por categoría:</strong> Selecciona una categoría del menú desplegable</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 {% if productos_stock_bajo_count > 0 %}
 <div class="alert alert-warning">
@@ -191,13 +270,20 @@
                         {% if producto.sku %}
                         <small class="text-muted d-block mb-2"><i class="bi bi-upc"></i> SKU: {{ producto.sku }}</small>
                         {% endif %}
+                        <button class="btn btn-sm btn-link p-0 favorito-btn" 
+                                data-producto-id="{{ producto.id }}"
+                                data-favorito="{% if producto.id in favoritos_ids %}true{% else %}false{% endif %}"
+                                onclick="toggleFavorito({{ producto.id }}, this)"
+                                title="{% if producto.id in favoritos_ids %}Quitar de favoritos{% else %}Agregar a favoritos{% endif %}">
+                            <i class="bi {% if producto.id in favoritos_ids %}bi-star-fill text-warning{% else %}bi-star{% endif %}"></i>
+                        </button>
                         {% if producto.categoria %}
                         <span class="badge badge-categoria mb-2" style="background-color: {{ producto.categoria.color }};">
                             {{ producto.categoria.nombre }}
                         </span>
                         {% endif %}
                     </div>
-                    <div class="text-center" style="min-width: 120px;">
+                    <div class="text-center min-width-120">
                         {% if producto.precio_promo %}
                         <div class="mb-1">
                             <small class="text-muted">Precio unidad:</small>
@@ -215,22 +301,44 @@
                         </div>
                         <div class="precio mb-2">${{ producto.precio|floatformat:0 }}</div>
                         {% endif %}
-                        {% if producto.stock > 10 %}
-                        <span class="badge bg-success badge-stock">
-                            <i class="bi bi-check-circle"></i> {{ producto.stock }}
-                        </span>
-                        {% elif producto.stock > 0 %}
-                        <span class="badge bg-warning badge-stock">
-                            <i class="bi bi-exclamation-triangle"></i> {{ producto.stock }}
-                        </span>
-                        {% else %}
-                        <span class="badge bg-danger badge-stock">
-                            <i class="bi bi-x-circle"></i> Sin stock
-                        </span>
-                        {% endif %}
+                        <div class="d-flex align-items-center gap-2">
+                            <div id="stock-display-list-{{ producto.id }}">
+                                {% if producto.stock > 10 %}
+                                <span class="badge bg-success badge-stock">
+                                    <i class="bi bi-check-circle"></i> <span class="stock-value">{{ producto.stock }}</span>
+                                </span>
+                                {% elif producto.stock > 0 %}
+                                <span class="badge bg-warning badge-stock">
+                                    <i class="bi bi-exclamation-triangle"></i> <span class="stock-value">{{ producto.stock }}</span>
+                                </span>
+                                {% else %}
+                                <span class="badge bg-danger badge-stock">
+                                    <i class="bi bi-x-circle"></i> Sin stock
+                                </span>
+                                {% endif %}
+                            </div>
+                            {% if es_admin %}
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-danger btn-stock-quick" 
+                                        data-producto-id="{{ producto.id }}" 
+                                        data-accion="restar" 
+                                        data-cantidad="1"
+                                        title="Restar 1 unidad">
+                                    <i class="bi bi-dash"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-success btn-stock-quick" 
+                                        data-producto-id="{{ producto.id }}" 
+                                        data-accion="sumar" 
+                                        data-cantidad="1"
+                                        title="Sumar 1 unidad">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
                     {% if es_admin %}
-                    <div class="d-flex gap-2" style="min-width: 150px;">
+                    <div class="d-flex gap-2 min-width-150">
                         <a href="{% url 'editar_producto' producto.id %}" class="btn btn-sm btn-warning flex-fill">
                             <i class="bi bi-pencil-square"></i> Editar
                         </a>
@@ -241,12 +349,21 @@
                     {% endif %}
                 </div>
                 {% else %}
-                <h5 class="card-title">
-                    <i class="bi bi-box-seam text-primary"></i>
-                    <a href="{% url 'detalle_producto' producto.id %}" class="text-decoration-none text-dark">
-                        {{ producto.nombre|truncatewords:8 }}
-                    </a>
-                </h5>
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-box-seam text-primary"></i>
+                        <a href="{% url 'detalle_producto' producto.id %}" class="text-decoration-none text-dark">
+                            {{ producto.nombre|truncatewords:8 }}
+                        </a>
+                    </h5>
+                    <button class="btn btn-sm btn-link p-0 favorito-btn" 
+                            data-producto-id="{{ producto.id }}"
+                            data-favorito="{% if producto.id in favoritos_ids %}true{% else %}false{% endif %}"
+                            onclick="toggleFavorito({{ producto.id }}, this)"
+                            title="{% if producto.id in favoritos_ids %}Quitar de favoritos{% else %}Agregar a favoritos{% endif %}">
+                        <i class="bi {% if producto.id in favoritos_ids %}bi-star-fill text-warning{% else %}bi-star{% endif %} favorito-icon"></i>
+                    </button>
+                </div>
                 {% if producto.categoria %}
                 <div class="mb-2">
                     <span class="badge badge-categoria" style="background-color: {{ producto.categoria.color }};">
@@ -274,20 +391,42 @@
                     {% endif %}
                 </div>
                 <div class="mb-3">
-                    <span class="text-muted">Stock:</span>
-                    {% if producto.stock > 10 %}
-                    <span class="badge bg-success badge-stock">
-                        <i class="bi bi-check-circle"></i> {{ producto.stock }} unidades
-                    </span>
-                    {% elif producto.stock > 0 %}
-                    <span class="badge bg-warning badge-stock">
-                        <i class="bi bi-exclamation-triangle"></i> {{ producto.stock }} unidades
-                    </span>
-                    {% else %}
-                    <span class="badge bg-danger badge-stock">
-                        <i class="bi bi-x-circle"></i> Sin stock
-                    </span>
-                    {% endif %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted">Stock:</span>
+                        {% if es_admin %}
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-danger btn-stock-quick" 
+                                    data-producto-id="{{ producto.id }}" 
+                                    data-accion="restar" 
+                                    data-cantidad="1"
+                                    title="Restar 1 unidad">
+                                <i class="bi bi-dash"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-success btn-stock-quick" 
+                                    data-producto-id="{{ producto.id }}" 
+                                    data-accion="sumar" 
+                                    data-cantidad="1"
+                                    title="Sumar 1 unidad">
+                                <i class="bi bi-plus"></i>
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div id="stock-display-{{ producto.id }}">
+                        {% if producto.stock > 10 %}
+                        <span class="badge bg-success badge-stock">
+                            <i class="bi bi-check-circle"></i> <span class="stock-value">{{ producto.stock }}</span> unidades
+                        </span>
+                        {% elif producto.stock > 0 %}
+                        <span class="badge bg-warning badge-stock">
+                            <i class="bi bi-exclamation-triangle"></i> <span class="stock-value">{{ producto.stock }}</span> unidades
+                        </span>
+                        {% else %}
+                        <span class="badge bg-danger badge-stock">
+                            <i class="bi bi-x-circle"></i> Sin stock
+                        </span>
+                        {% endif %}
+                    </div>
                 </div>
                 {% if es_admin %}
                 <hr>
@@ -334,10 +473,34 @@
 {% endif %}
 
 {% else %}
-<div class="alert alert-info text-center" role="alert">
-    <i class="bi bi-info-circle icono-info-grande"></i>
-    <h4 class="mt-3">No se encontraron productos</h4>
-    <p>{% if query %}Intenta con otro término de búsqueda.{% else %}No hay productos en el inventario.{% endif %}</p>
+<div class="alert alert-info text-center border-0 shadow-sm" role="alert" style="padding: 3rem;">
+    <i class="bi bi-search" style="font-size: 4rem; color: #0dcaf0;"></i>
+    <h4 class="mt-3">{% if query %}No se encontraron productos{% else %}No hay productos en el inventario{% endif %}</h4>
+    <p class="mb-3">
+        {% if query %}
+        No encontramos productos que coincidan con "<strong>{{ query }}</strong>"
+        {% else %}
+        Aún no hay productos registrados en el sistema.
+        {% endif %}
+    </p>
+    {% if query %}
+    <div class="d-flex justify-content-center gap-2 flex-wrap">
+        <a href="{% url 'inicio' %}" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-left"></i> Ver todos los productos
+        </a>
+        <button onclick="document.getElementById('search-input').focus();" class="btn btn-primary">
+            <i class="bi bi-pencil"></i> Intentar otra búsqueda
+        </button>
+    </div>
+    <div class="mt-4">
+        <p class="text-muted small mb-2"><strong>Consejos para buscar:</strong></p>
+        <ul class="list-unstyled text-muted small">
+            <li><i class="bi bi-check-circle text-success"></i> Escribe solo parte del nombre (ej: "coca" en vez de "Coca Cola 500ml")</li>
+            <li><i class="bi bi-check-circle text-success"></i> Verifica que no haya errores de ortografía</li>
+            <li><i class="bi bi-check-circle text-success"></i> Intenta buscar por categoría en el menú desplegable</li>
+        </ul>
+    </div>
+    {% endif %}
 </div>
 {% endif %}
 {% endblock %}
@@ -373,6 +536,219 @@
             });
         }
     });
+    
+    // Función para toggle de favoritos
+    window.toggleFavorito = function(productoId, button) {
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        const csrftoken = getCookie('csrftoken');
+        fetch(`/producto/${productoId}/favorito/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            const icon = button.querySelector('i');
+            if (data.favorito) {
+                icon.className = 'bi bi-star-fill text-warning';
+                button.setAttribute('data-favorito', 'true');
+                button.setAttribute('title', 'Quitar de favoritos');
+            } else {
+                icon.className = 'bi bi-star';
+                icon.classList.remove('text-warning');
+                button.setAttribute('data-favorito', 'false');
+                button.setAttribute('title', 'Agregar a favoritos');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            window.location.reload();
+        });
+    };
+    
+    // ===== INICIALIZAR TOOLTIPS =====
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // ===== EDICIÓN RÁPIDA DE STOCK =====
+    document.querySelectorAll('.btn-stock-quick').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const productoId = this.getAttribute('data-producto-id');
+            const accion = this.getAttribute('data-accion');
+            const cantidad = this.getAttribute('data-cantidad');
+            
+            // Deshabilitar botón mientras procesa
+            this.disabled = true;
+            const originalHTML = this.innerHTML;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            
+            // Obtener CSRF token
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+            
+            const csrftoken = getCookie('csrftoken');
+            
+            fetch(`/producto/${productoId}/actualizar-stock/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `accion=${accion}&cantidad=${cantidad}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Actualizar display de stock en grid
+                    const stockDisplay = document.getElementById(`stock-display-${productoId}`);
+                    const stockValue = stockDisplay ? stockDisplay.querySelector('.stock-value') : null;
+                    if (stockValue) {
+                        stockValue.textContent = data.stock;
+                    }
+                    
+                    // Actualizar display de stock en lista
+                    const stockDisplayList = document.getElementById(`stock-display-list-${productoId}`);
+                    const stockValueList = stockDisplayList ? stockDisplayList.querySelector('.stock-value') : null;
+                    if (stockValueList) {
+                        stockValueList.textContent = data.stock;
+                    }
+                    
+                    // Actualizar badge según stock
+                    if (stockDisplay) {
+                        stockDisplay.innerHTML = '';
+                        let badgeClass = 'bg-success';
+                        let icon = 'bi-check-circle';
+                        let text = `${data.stock} unidades`;
+                        
+                        if (data.stock === 0) {
+                            badgeClass = 'bg-danger';
+                            icon = 'bi-x-circle';
+                            text = 'Sin stock';
+                        } else if (data.stock_bajo) {
+                            badgeClass = 'bg-warning';
+                            icon = 'bi-exclamation-triangle';
+                            text = `${data.stock} unidades`;
+                        }
+                        
+                        stockDisplay.innerHTML = `<span class="badge ${badgeClass} badge-stock">
+                            <i class="bi ${icon}"></i> <span class="stock-value">${data.stock}</span> ${data.stock === 0 ? '' : 'unidades'}
+                        </span>`;
+                    }
+                    
+                    if (stockDisplayList) {
+                        stockDisplayList.innerHTML = '';
+                        let badgeClass = 'bg-success';
+                        let icon = 'bi-check-circle';
+                        let text = data.stock.toString();
+                        
+                        if (data.stock === 0) {
+                            badgeClass = 'bg-danger';
+                            icon = 'bi-x-circle';
+                            text = 'Sin stock';
+                        } else if (data.stock_bajo) {
+                            badgeClass = 'bg-warning';
+                            icon = 'bi-exclamation-triangle';
+                            text = data.stock.toString();
+                        }
+                        
+                        stockDisplayList.innerHTML = `<span class="badge ${badgeClass} badge-stock">
+                            <i class="bi ${icon}"></i> <span class="stock-value">${data.stock}</span>
+                        </span>`;
+                    }
+                    
+                    // Mostrar mensaje de éxito
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
+                    alertDiv.style.zIndex = '9999';
+                    alertDiv.innerHTML = `
+                        <i class="bi bi-check-circle"></i> ${data.mensaje}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    document.body.appendChild(alertDiv);
+                    setTimeout(() => alertDiv.remove(), 3000);
+                } else {
+                    alert('Error: ' + (data.error || 'No se pudo actualizar el stock'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al actualizar el stock. Por favor intenta de nuevo.');
+            })
+            .finally(() => {
+                // Restaurar botón
+                this.disabled = false;
+                this.innerHTML = originalHTML;
+            });
+        });
+    });
+    
+    // ===== LECTOR DE CÓDIGO DE BARRAS USB =====
+    // Los lectores USB envían el código + Enter automáticamente
+    // Este código detecta entrada rápida (típica de escáneres) y busca automáticamente
+    let barcodeBuffer = '';
+    let barcodeTimeout = null;
+    
+    document.addEventListener('keypress', function(e) {
+        // Si el foco está en un input que no es el de búsqueda, ignorar
+        if (document.activeElement.tagName === 'INPUT' && document.activeElement.id !== 'search-input') {
+            return;
+        }
+        
+        // Si es Enter y hay algo en el buffer, buscar
+        if (e.key === 'Enter' && barcodeBuffer.length > 3) {
+            e.preventDefault();
+            document.getElementById('search-input').value = barcodeBuffer;
+            document.getElementById('search-form').submit();
+            barcodeBuffer = '';
+            return;
+        }
+        
+        // Acumular caracteres (los escáneres escriben muy rápido)
+        if (e.key.length === 1) {
+            barcodeBuffer += e.key;
+            
+            // Limpiar buffer después de 100ms de inactividad
+            clearTimeout(barcodeTimeout);
+            barcodeTimeout = setTimeout(() => {
+                barcodeBuffer = '';
+            }, 100);
+        }
+    });
 </script>
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
 {% endblock %}
 

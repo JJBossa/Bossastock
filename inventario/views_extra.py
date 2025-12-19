@@ -18,19 +18,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from .models import Producto, Categoria, HistorialCambio
 from .forms import ProductoForm, CategoriaForm
-from .views import es_admin_bossa
-
-def registrar_cambio(producto, usuario, tipo_cambio, campo_modificado=None, valor_anterior=None, valor_nuevo=None, descripcion=None):
-    """Registra un cambio en el historial"""
-    HistorialCambio.objects.create(
-        producto=producto,
-        usuario=usuario,
-        tipo_cambio=tipo_cambio,
-        campo_modificado=campo_modificado,
-        valor_anterior=str(valor_anterior) if valor_anterior else None,
-        valor_nuevo=str(valor_nuevo) if valor_nuevo else None,
-        descripcion=descripcion
-    )
+from .utils import es_admin_bossa, registrar_cambio, logger
 
 @login_required
 def dashboard(request):
@@ -56,14 +44,14 @@ def dashboard(request):
         cantidad=Count('producto')
     ).order_by('-cantidad')[:10]
     
-    # Productos con stock bajo
+    # Productos con stock bajo - Optimización: select_related
     productos_bajo_stock = Producto.objects.filter(
         activo=True,
         stock__lte=F('stock_minimo')
-    ).order_by('stock')[:10]
+    ).select_related('categoria').order_by('stock')[:10]
     
-    # Productos recientes
-    productos_recientes = Producto.objects.order_by('-fecha_creacion')[:5]
+    # Productos recientes - Optimización: select_related
+    productos_recientes = Producto.objects.select_related('categoria').order_by('-fecha_creacion')[:5]
     
     # Cambios recientes
     cambios_recientes = HistorialCambio.objects.select_related('producto', 'usuario').order_by('-fecha')[:10]
@@ -96,8 +84,9 @@ def dashboard(request):
 @login_required
 def detalle_producto(request, producto_id):
     """Vista de detalles de un producto"""
-    producto = get_object_or_404(Producto, id=producto_id)
-    historial = HistorialCambio.objects.filter(producto=producto).order_by('-fecha')[:10]
+    # Optimización: usar select_related y prefetch_related
+    producto = get_object_or_404(Producto.objects.select_related('categoria'), id=producto_id)
+    historial = HistorialCambio.objects.filter(producto=producto).select_related('usuario').order_by('-fecha')[:10]
     
     context = {
         'producto': producto,
@@ -110,7 +99,8 @@ def detalle_producto(request, producto_id):
 @login_required
 def exportar_excel(request):
     """Exporta productos a Excel"""
-    productos = Producto.objects.filter(activo=True).order_by('nombre')
+    # Optimización: usar select_related para evitar N+1 queries
+    productos = Producto.objects.filter(activo=True).select_related('categoria').order_by('nombre')
     
     wb = Workbook()
     ws = wb.active
@@ -159,7 +149,8 @@ def exportar_excel(request):
 @login_required
 def exportar_pdf(request):
     """Exporta productos a PDF"""
-    productos = Producto.objects.filter(activo=True).order_by('nombre')
+    # Optimización: usar select_related para evitar N+1 queries
+    productos = Producto.objects.filter(activo=True).select_related('categoria').order_by('nombre')
     
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
@@ -214,7 +205,8 @@ def exportar_pdf(request):
 @login_required
 def exportar_csv(request):
     """Exporta productos a CSV"""
-    productos = Producto.objects.filter(activo=True).order_by('nombre')
+    # Optimización: usar select_related para evitar N+1 queries
+    productos = Producto.objects.filter(activo=True).select_related('categoria').order_by('nombre')
     
     response = HttpResponse(content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = 'attachment; filename="productos.csv"'

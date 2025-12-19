@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}Crear Usuario - STOCKEX{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-person-plus"></i> Crear Nuevo Usuario</h2>
+    <a href="{% url 'listar_usuarios' %}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Volver a Usuarios
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Nombre de Usuario <span class="text-danger">*</span></label>
+                    <input type="text" 
+                           class="form-control" 
+                           name="username" 
+                           required 
+                           placeholder="usuario123">
+                    <small class="form-text text-muted">Obligatorio. Debe ser único.</small>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Email</label>
+                    <input type="email" 
+                           class="form-control" 
+                           name="email" 
+                           placeholder="usuario@ejemplo.com">
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Nombre</label>
+                    <input type="text" 
+                           class="form-control" 
+                           name="first_name" 
+                           placeholder="Juan">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Apellido</label>
+                    <input type="text" 
+                           class="form-control" 
+                           name="last_name" 
+                           placeholder="Pérez">
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Contraseña <span class="text-danger">*</span></label>
+                    <input type="password" 
+                           class="form-control" 
+                           name="password" 
+                           required 
+                           minlength="6"
+                           placeholder="Mínimo 6 caracteres">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Confirmar Contraseña <span class="text-danger">*</span></label>
+                    <input type="password" 
+                           class="form-control" 
+                           name="password_confirm" 
+                           required 
+                           minlength="6"
+                           placeholder="Repite la contraseña">
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <div class="form-check">
+                        <input class="form-check-input" 
+                               type="checkbox" 
+                               name="is_staff" 
+                               id="is_staff">
+                        <label class="form-check-label" for="is_staff">
+                            <i class="bi bi-shield"></i> Staff (acceso al panel de administración)
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <div class="form-check">
+                        <input class="form-check-input" 
+                               type="checkbox" 
+                               name="is_superuser" 
+                               id="is_superuser">
+                        <label class="form-check-label" for="is_superuser">
+                            <i class="bi bi-shield-check"></i> Superusuario (todos los permisos)
+                        </label>
+                    </div>
+                    <small class="form-text text-muted">
+                        ⚠️ Los superusuarios tienen acceso completo al sistema y pueden gestionar usuarios.
+                    </small>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-end gap-2">
+                <a href="{% url 'listar_usuarios' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Cancelar
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i> Crear Usuario
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
+{% endblock %}
+

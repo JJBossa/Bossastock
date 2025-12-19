@@ -1,0 +1,253 @@
+{% extends 'base.html' %}
+
+{% block title %}Ventas - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item active">Ventas</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-receipt text-primary"></i> {% if es_admin %}Historial de Ventas{% else %}Mis Ventas{% endif %}</h2>
+    <div>
+        <a href="{% url 'punto_venta' %}" class="btn btn-success me-2">
+            <i class="bi bi-cash-register"></i> Nueva Venta
+        </a>
+        {% if es_admin %}
+        <button type="button" class="btn btn-danger me-2" onclick="confirmarLimpiarHistorial()">
+            <i class="bi bi-trash"></i> Limpiar Historial
+        </button>
+        {% endif %}
+        <a href="{% url 'inicio' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+</div>
+
+<!-- Estadísticas -->
+{% if es_admin or total_ventas_count > 0 %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5>{% if es_admin %}Total Ventas{% else %}Mis Ventas{% endif %}</h5>
+                <h3>${{ total_ventas|floatformat:0 }}</h3>
+                <small>{{ total_ventas_count }} venta{{ total_ventas_count|pluralize }}</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Filtros -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Número de Venta</label>
+                <input type="text" name="numero_venta" class="form-control" value="{{ numero_venta }}" placeholder="V-...">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Método de Pago</label>
+                <select name="metodo_pago" class="form-select">
+                    <option value="">Todos</option>
+                    <option value="efectivo" {% if metodo_pago == 'efectivo' %}selected{% endif %}>Efectivo</option>
+                    <option value="tarjeta" {% if metodo_pago == 'tarjeta' %}selected{% endif %}>Tarjeta</option>
+                    <option value="transferencia" {% if metodo_pago == 'transferencia' %}selected{% endif %}>Transferencia</option>
+                    <option value="mixto" {% if metodo_pago == 'mixto' %}selected{% endif %}>Mixto</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Desde</label>
+                <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Hasta</label>
+                <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta }}">
+            </div>
+            <div class="col-md-{% if es_admin %}3{% else %}4{% endif %} d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="bi bi-search"></i> Filtrar
+                </button>
+                <a href="{% url 'listar_ventas' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Limpiar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla de ventas -->
+<div class="card">
+    <div class="card-body">
+        {% if ventas %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Número</th>
+                        <th>Fecha</th>
+                        {% if es_admin %}<th>Vendedor</th>{% endif %}
+                        <th>Items</th>
+                        <th>Total</th>
+                        <th>Método Pago</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for venta in ventas %}
+                    <tr>
+                        <td><strong>{{ venta.numero_venta }}</strong></td>
+                        <td>{{ venta.fecha|date:"d/m/Y H:i" }}</td>
+                        {% if es_admin %}<td>{{ venta.usuario.username|default:"-" }}</td>{% endif %}
+                        <td>{{ venta.items.count }} producto{{ venta.items.count|pluralize }}</td>
+                        <td><strong>${{ venta.total|floatformat:0 }}</strong></td>
+                        <td>{{ venta.get_metodo_pago_display }}</td>
+                        <td>
+                            {% if venta.cancelada %}
+                            <span class="badge bg-danger">Cancelada</span>
+                            {% else %}
+                            <span class="badge bg-success">Completada</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'detalle_venta' venta.id %}" class="btn btn-sm btn-info">
+                                <i class="bi bi-eye"></i> Ver
+                            </a>
+                            {% if not venta.cancelada %}
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{% url 'imprimir_ticket_venta' venta.id %}?tipo=termica" class="btn btn-primary" target="_blank" title="Térmica">
+                                    <i class="bi bi-printer"></i>
+                                </a>
+                                <a href="{% url 'imprimir_ticket_venta' venta.id %}?tipo=a4" class="btn btn-outline-primary" target="_blank" title="A4">
+                                    <i class="bi bi-file-pdf"></i>
+                                </a>
+                            </div>
+                            {% if es_admin or venta.usuario == request.user %}
+                            <button class="btn btn-sm btn-danger" onclick="cancelarVenta({{ venta.id }}, '{{ venta.numero_venta }}')">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </button>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginación -->
+        {% if ventas.has_other_pages %}
+        <nav aria-label="Paginación">
+            <ul class="pagination justify-content-center">
+                {% if ventas.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ ventas.previous_page_number }}">Anterior</a>
+                </li>
+                {% endif %}
+                <li class="page-item active">
+                    <span class="page-link">Página {{ ventas.number }} de {{ ventas.paginator.num_pages }}</span>
+                </li>
+                {% if ventas.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ ventas.next_page_number }}">Siguiente</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-receipt" style="font-size: 4rem; color: #ccc;"></i>
+            <h4 class="mt-3">No hay ventas registradas</h4>
+            <a href="{% url 'punto_venta' %}" class="btn btn-primary mt-3">
+                <i class="bi bi-cash-register"></i> Realizar Primera Venta
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function cancelarVenta(ventaId, numeroVenta) {
+    if (!confirm(`¿Estás seguro de cancelar la venta ${numeroVenta}? Se restaurará el stock de los productos.`)) {
+        return;
+    }
+    
+    const csrftoken = getCookie('csrftoken');
+    
+    fetch(`/ventas/${ventaId}/cancelar/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.mensaje);
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'No se pudo cancelar la venta'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al cancelar la venta');
+    });
+}
+
+function confirmarLimpiarHistorial() {
+    const mensaje = '¿ESTÁS SEGURO DE ELIMINAR TODO EL HISTORIAL DE VENTAS?\n\n' +
+                   'Esta acción NO se puede deshacer.\n' +
+                   'Se eliminarán TODAS las ventas registradas en el sistema.\n\n' +
+                   'Escribe "ELIMINAR" para confirmar:';
+    
+    const confirmacion = prompt(mensaje);
+    
+    if (confirmacion === 'ELIMINAR') {
+        // Crear un formulario para enviar POST
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{% url "limpiar_historial_ventas" %}';
+        
+        // Agregar CSRF token
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = getCookie('csrftoken');
+        form.appendChild(csrfInput);
+        
+        // Agregar al body y enviar
+        document.body.appendChild(form);
+        form.submit();
+    } else if (confirmacion !== null) {
+        alert('Confirmación incorrecta. La acción fue cancelada.');
+    }
+}
+</script>
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
+{% endblock %}
+

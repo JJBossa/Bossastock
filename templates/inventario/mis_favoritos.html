@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Mis Favoritos - STOCKEX{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-star-fill text-warning"></i> Mis Productos Favoritos</h2>
+    <a href="{% url 'inicio' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Volver
+    </a>
+</div>
+
+{% if productos %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> Tienes <strong>{{ total_favoritos }}</strong> producto{{ total_favoritos|pluralize }} en favoritos.
+</div>
+
+<div class="row">
+    {% for producto in productos %}
+    <div class="col-md-4 col-lg-3 mb-4">
+        <div class="card card-producto h-100">
+            {% if producto.imagen %}
+            <img src="{{ producto.imagen.url }}" class="card-img-top producto-imagen" alt="{{ producto.nombre }}">
+            {% else %}
+            <div class="card-img-top d-flex align-items-center justify-content-center producto-placeholder">
+                <i class="bi bi-image producto-placeholder-icon"></i>
+            </div>
+            {% endif %}
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-box-seam text-primary"></i>
+                        <a href="{% url 'detalle_producto' producto.id %}" class="text-decoration-none">
+                            {{ producto.nombre }}
+                        </a>
+                    </h5>
+                    <button class="btn btn-sm btn-link p-0 favorito-btn" 
+                            data-producto-id="{{ producto.id }}"
+                            onclick="toggleFavorito({{ producto.id }}, this)"
+                            title="Quitar de favoritos">
+                        <i class="bi bi-star-fill text-warning favorito-icon"></i>
+                    </button>
+                </div>
+                
+                {% if producto.sku %}
+                <small class="text-muted d-block mb-2">
+                    <i class="bi bi-upc"></i> SKU: {{ producto.sku }}
+                </small>
+                {% endif %}
+                
+                {% if producto.categoria %}
+                <span class="badge badge-categoria mb-2" style="background-color: {{ producto.categoria.color }};">
+                    {{ producto.categoria.nombre }}
+                </span>
+                {% endif %}
+                
+                <div class="mt-3">
+                    {% if producto.precio_promo %}
+                    <div class="mb-1">
+                        <small class="text-muted">Precio unidad:</small>
+                        <div class="text-muted">${{ producto.precio|floatformat:0 }}</div>
+                    </div>
+                    <div class="mb-2">
+                        <small class="text-muted">Precio promo:</small>
+                        <div class="precio text-success">
+                            <strong>${{ producto.precio_promo|floatformat:0 }}</strong>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="mb-1">
+                        <small class="text-muted">Precio unidad:</small>
+                    </div>
+                    <div class="precio mb-2">${{ producto.precio|floatformat:0 }}</div>
+                    {% endif %}
+                    
+                    {% if producto.stock > 10 %}
+                    <span class="badge bg-success badge-stock">
+                        <i class="bi bi-check-circle"></i> Stock: {{ producto.stock }}
+                    </span>
+                    {% elif producto.stock > 0 %}
+                    <span class="badge bg-warning badge-stock">
+                        <i class="bi bi-exclamation-triangle"></i> Stock: {{ producto.stock }}
+                    </span>
+                    {% else %}
+                    <span class="badge bg-danger badge-stock">
+                        <i class="bi bi-x-circle"></i> Sin stock
+                    </span>
+                    {% endif %}
+                </div>
+                
+                <div class="mt-3">
+                    <a href="{% url 'detalle_producto' producto.id %}" class="btn btn-sm btn-primary w-100">
+                        <i class="bi bi-eye"></i> Ver Detalles
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-warning">
+    <i class="bi bi-star"></i> No tienes productos favoritos aún. 
+    <a href="{% url 'inicio' %}">Explora los productos</a> y marca tus favoritos con la estrella.
+</div>
+{% endif %}
+
+<script>
+function toggleFavorito(productoId, button) {
+    fetch(`/producto/${productoId}/favorito/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.favorito) {
+            // Si se quitó de favoritos, remover la tarjeta
+            button.closest('.col-md-4').remove();
+            // Actualizar contador si existe
+            const alert = document.querySelector('.alert-info');
+            if (alert) {
+                const count = document.querySelectorAll('.card-producto').length - 1;
+                if (count > 0) {
+                    alert.innerHTML = `<i class="bi bi-info-circle"></i> Tienes <strong>${count}</strong> producto${count > 1 ? 's' : ''} en favoritos.`;
+                } else {
+                    window.location.reload();
+                }
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        window.location.reload();
+    });
+}
+</script>
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
+{% endblock %}
+

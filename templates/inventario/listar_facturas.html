@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Facturas - Control de Stock{% endblock %}
+{% block title %}Facturas - STOCKEX{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -224,7 +224,7 @@
             <input type="number" name="page" min="1" max="{{ facturas.paginator.num_pages }}" 
                    value="{{ facturas.number }}" 
                    class="form-control form-control-sm" 
-                   style="width: 80px; text-align: center;"
+                   class="input-center"
                    id="goToPage">
             <button type="submit" class="btn btn-primary btn-sm">
                 <i class="bi bi-arrow-right"></i> Ir
@@ -264,5 +264,9 @@ function validarPagina(form) {
     return true;
 }
 </script>
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
 {% endblock %}
 

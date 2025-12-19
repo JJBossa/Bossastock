@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+
+{% block title %}Reportes Avanzados - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item active">Reportes Avanzados</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-graph-up text-primary"></i> Reportes Avanzados</h2>
+    <div>
+        <form method="get" class="d-inline me-2">
+            <select name="dias" class="form-select d-inline-block" style="width: auto;" onchange="this.form.submit()">
+                <option value="7" {% if dias == 7 %}selected{% endif %}>Últimos 7 días</option>
+                <option value="30" {% if dias == 30 %}selected{% endif %}>Últimos 30 días</option>
+                <option value="90" {% if dias == 90 %}selected{% endif %}>Últimos 90 días</option>
+                <option value="365" {% if dias == 365 %}selected{% endif %}>Último año</option>
+            </select>
+        </form>
+        <a href="{% url 'inicio' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Volver
+        </a>
+    </div>
+</div>
+
+<!-- Estadísticas Generales -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h5>Total Productos</h5>
+                <h3>{{ total_productos }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h5>Ventas del Período</h5>
+                <h3>${{ total_ventas_periodo|floatformat:0 }}</h3>
+                <small>{{ cantidad_ventas }} venta{{ cantidad_ventas|pluralize }}</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h5>Valor Inventario</h5>
+                <h3>${{ valor_inventario_total|floatformat:0 }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <h5>Ganancia Potencial</h5>
+                <h3>${{ ganancia_potencial_total|floatformat:0 }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ventas por Método de Pago -->
+{% if ventas_por_metodo %}
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-credit-card"></i> Ventas por Método de Pago</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Método</th>
+                        <th>Cantidad de Ventas</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in ventas_por_metodo %}
+                    <tr>
+                        <td><strong>
+                            {% if item.metodo_pago == 'efectivo' %}Efectivo
+                            {% elif item.metodo_pago == 'tarjeta' %}Tarjeta
+                            {% elif item.metodo_pago == 'transferencia' %}Transferencia
+                            {% elif item.metodo_pago == 'mixto' %}Mixto
+                            {% else %}{{ item.metodo_pago }}{% endif %}
+                        </strong></td>
+                        <td>{{ item.cantidad }}</td>
+                        <td><strong>${{ item.total|floatformat:0 }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Productos Más Vendidos -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-trophy"></i> Productos Más Vendidos</h5>
+    </div>
+    <div class="card-body">
+        {% if productos_mas_vendidos %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Producto</th>
+                        <th>Total Vendido</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in productos_mas_vendidos %}
+                    <tr>
+                        <td><strong>{{ forloop.counter }}</strong></td>
+                        <td>{{ item.producto__nombre }}</td>
+                        <td><span class="badge bg-success">{{ item.total_vendido }} unidades</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">No hay datos de ventas en este período</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Rotación de Inventario -->
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="bi bi-arrow-repeat"></i> Rotación de Inventario</h5>
+    </div>
+    <div class="card-body">
+        {% if productos_rotacion %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Entradas</th>
+                        <th>Salidas</th>
+                        <th>Rotación</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in productos_rotacion %}
+                    <tr>
+                        <td>{{ item.producto.nombre }}</td>
+                        <td><span class="badge bg-success">{{ item.entradas }}</span></td>
+                        <td><span class="badge bg-danger">{{ item.salidas }}</span></td>
+                        <td><strong>{{ item.rotacion|floatformat:2 }}x</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">No hay datos de rotación en este período</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Productos Más Rentables -->
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-cash-coin"></i> Productos Más Rentables</h5>
+    </div>
+    <div class="card-body">
+        {% if productos_rentables %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Precio Compra</th>
+                        <th>Precio Venta</th>
+                        <th>Margen %</th>
+                        <th>Stock</th>
+                        <th>Ganancia Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in productos_rentables %}
+                    <tr>
+                        <td>{{ item.producto.nombre }}</td>
+                        <td>${{ item.producto.precio_compra|floatformat:0 }}</td>
+                        <td>${{ item.producto.precio|floatformat:0 }}</td>
+                        <td><span class="badge bg-success">{{ item.producto.margen_ganancia|floatformat:1 }}%</span></td>
+                        <td>{{ item.producto.stock }}</td>
+                        <td><strong>${{ item.ganancia_total|floatformat:0 }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">No hay productos con precio de compra registrado</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Productos Sin Movimiento -->
+<div class="card">
+    <div class="card-header bg-warning text-white">
+        <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Productos Sin Movimiento</h5>
+    </div>
+    <div class="card-body">
+        {% if productos_sin_movimiento %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Stock</th>
+                        <th>Precio</th>
+                        <th>Valor Inventario</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for producto in productos_sin_movimiento %}
+                    <tr>
+                        <td>{{ producto.nombre }}</td>
+                        <td>{{ producto.stock }}</td>
+                        <td>${{ producto.precio|floatformat:0 }}</td>
+                        <td>${{ producto.valor_inventario|floatformat:0 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">Todos los productos han tenido movimiento en este período</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
+{% endblock %}
+

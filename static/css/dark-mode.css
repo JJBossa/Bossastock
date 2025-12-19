@@ -1,0 +1,415 @@
+/* Modo Oscuro */
+/* Transiciones suaves entre modos */
+body.dark-mode,
+body.dark-mode *,
+body.dark-mode *::before,
+body.dark-mode *::after {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, background 0.3s ease !important;
+}
+
+body.dark-mode {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%) !important;
+    color: #e0e0e0;
+}
+
+body.dark-mode .main-container {
+    background-color: #2d2d2d !important;
+    color: #e0e0e0;
+    border-color: #444;
+}
+
+body.dark-mode .navbar-custom {
+    background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%) !important;
+}
+
+body.dark-mode .card {
+    background-color: #2d2d2d;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+body.dark-mode .card-header {
+    background-color: #3a3a3a;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+body.dark-mode .form-control,
+body.dark-mode .form-select {
+    background-color: #2d2d2d;
+    border-color: #555;
+    color: #e0e0e0;
+}
+
+body.dark-mode .form-control:focus,
+body.dark-mode .form-select:focus {
+    background-color: #2d2d2d;
+    border-color: #667eea;
+    color: #e0e0e0;
+}
+
+body.dark-mode .input-group-text {
+    background-color: #3a3a3a;
+    border-color: #555;
+    color: #e0e0e0;
+}
+
+body.dark-mode .table {
+    color: #e0e0e0;
+}
+
+body.dark-mode .table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: #2d2d2d;
+}
+
+body.dark-mode .breadcrumb {
+    background-color: #2d2d2d;
+}
+
+body.dark-mode .breadcrumb-item a {
+    color: #667eea;
+}
+
+body.dark-mode .footer {
+    background-color: #2d2d2d;
+    color: #e0e0e0;
+    border-top-color: #444;
+}
+
+body.dark-mode .alert {
+    border-color: transparent;
+}
+
+body.dark-mode .alert-info {
+    background-color: #1e3a5f;
+    color: #cce5ff;
+    border-color: #1e3a5f;
+}
+
+body.dark-mode .alert-success {
+    background-color: #1e5f3a;
+    color: #ccffdd;
+    border-color: #1e5f3a;
+}
+
+body.dark-mode .alert-warning {
+    background-color: #5f4a1e;
+    color: #ffddcc;
+    border-color: #5f4a1e;
+}
+
+body.dark-mode .alert-danger {
+    background-color: #5f1e1e;
+    color: #ffcccc;
+    border-color: #5f1e1e;
+}
+
+body.dark-mode .stats-card {
+    background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%) !important;
+    border-color: #444;
+    color: white;
+}
+
+body.dark-mode .stats-card h3,
+body.dark-mode .stats-card h4,
+body.dark-mode .stats-card p {
+    color: white;
+}
+
+body.dark-mode .search-container {
+    background-color: #2d2d2d;
+    border-color: #444;
+}
+
+body.dark-mode .producto-placeholder {
+    background-color: #3a3a3a;
+}
+
+body.dark-mode .badge {
+    color: #fff;
+}
+
+body.dark-mode .text-muted {
+    color: #999 !important;
+}
+
+body.dark-mode .dropdown-menu {
+    background-color: #2d2d2d;
+    border-color: #444;
+}
+
+body.dark-mode .dropdown-item {
+    color: #e0e0e0;
+}
+
+body.dark-mode .dropdown-item:hover {
+    background-color: #3a3a3a;
+    color: #fff;
+}
+
+body.dark-mode kbd {
+    background-color: #3a3a3a;
+    color: #e0e0e0;
+    border-color: #555;
+}
+
+/* Links */
+body.dark-mode a {
+    color: #667eea;
+}
+
+body.dark-mode a:hover {
+    color: #818cf8;
+}
+
+body.dark-mode .card a {
+    color: #818cf8;
+}
+
+body.dark-mode .card a:hover {
+    color: #a5b4fc;
+}
+
+/* Precios */
+body.dark-mode .precio {
+    color: #818cf8 !important;
+}
+
+body.dark-mode .precio-destacado {
+    color: #818cf8 !important;
+}
+
+/* Breadcrumbs */
+body.dark-mode .breadcrumb-item.active {
+    color: #e0e0e0;
+}
+
+/* Filtros avanzados */
+body.dark-mode .filtros-avanzados {
+    border-top-color: #555 !important;
+}
+
+body.dark-mode .filtros-toggle {
+    color: #818cf8 !important;
+}
+
+body.dark-mode .filtros-toggle:hover {
+    color: #a5b4fc !important;
+}
+
+/* Tablas */
+body.dark-mode .table thead th {
+    background-color: #3a3a3a !important;
+    border-bottom-color: #555 !important;
+    color: #e0e0e0;
+}
+
+body.dark-mode .table td {
+    border-color: #444;
+}
+
+/* Paginación */
+body.dark-mode .pagination .page-link {
+    background-color: #2d2d2d;
+    border-color: #555;
+    color: #818cf8;
+}
+
+body.dark-mode .pagination .page-link:hover {
+    background-color: #3a3a3a;
+    border-color: #818cf8;
+    color: #fff;
+}
+
+body.dark-mode .pagination .page-item.active .page-link {
+    background-color: #667eea;
+    border-color: #667eea;
+    color: white;
+}
+
+body.dark-mode .pagination .page-item.disabled .page-link {
+    background-color: #2d2d2d;
+    border-color: #555;
+    color: #666;
+}
+
+body.dark-mode .btn-pagination {
+    background-color: #2d2d2d !important;
+    border-color: #667eea !important;
+    color: #818cf8 !important;
+}
+
+body.dark-mode .btn-pagination:hover {
+    background-color: #667eea !important;
+    color: white !important;
+}
+
+/* Botones outline */
+body.dark-mode .btn-outline-secondary {
+    border-color: #555;
+    color: #e0e0e0;
+}
+
+body.dark-mode .btn-outline-secondary:hover {
+    background-color: #3a3a3a;
+    border-color: #666;
+    color: #fff;
+}
+
+body.dark-mode .btn-outline-light {
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+}
+
+body.dark-mode .btn-outline-light:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+    color: #fff;
+}
+
+/* Placeholder de imágenes */
+body.dark-mode .imagen-placeholder {
+    background: linear-gradient(135deg, #2d2d2d 0%, #3a3a3a 100%) !important;
+}
+
+body.dark-mode .producto-placeholder-icon {
+    color: #666 !important;
+}
+
+/* Títulos y textos */
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6 {
+    color: #e0e0e0;
+}
+
+body.dark-mode .card-title {
+    color: #e0e0e0;
+}
+
+/* Container fluid */
+body.dark-mode .container-fluid {
+    background-color: transparent;
+}
+
+/* Separadores */
+body.dark-mode hr {
+    border-color: #444;
+    opacity: 0.3;
+}
+
+/* Navbar brand y texto */
+body.dark-mode .navbar-brand {
+    color: white !important;
+}
+
+body.dark-mode .navbar-text {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Modales y popovers */
+body.dark-mode .modal-content {
+    background-color: #2d2d2d;
+    color: #e0e0e0;
+    border-color: #444;
+}
+
+body.dark-mode .modal-header {
+    border-bottom-color: #444;
+}
+
+body.dark-mode .modal-footer {
+    border-top-color: #444;
+}
+
+body.dark-mode .btn-close {
+    filter: invert(1);
+}
+
+/* Contenedor de producto info en vista lista */
+body.dark-mode .producto-info {
+    color: #e0e0e0;
+}
+
+/* Botones específicos */
+body.dark-mode .btn-info {
+    background-color: #0ea5e9;
+    border-color: #0ea5e9;
+    color: white;
+}
+
+body.dark-mode .btn-info:hover {
+    background-color: #0284c7;
+    border-color: #0284c7;
+    color: white;
+}
+
+body.dark-mode .btn-success {
+    background-color: #10b981;
+    border-color: #10b981;
+    color: white;
+}
+
+body.dark-mode .btn-success:hover {
+    background-color: #059669;
+    border-color: #059669;
+    color: white;
+}
+
+/* Enlaces dentro de cards */
+body.dark-mode .card-body a.text-dark {
+    color: #e0e0e0 !important;
+}
+
+body.dark-mode .card-body a.text-dark:hover {
+    color: #818cf8 !important;
+}
+
+/* Texto dentro de cards */
+body.dark-mode .card-body {
+    color: #e0e0e0;
+}
+
+/* Small text */
+body.dark-mode small {
+    color: #999;
+}
+
+/* Fondo de página completo */
+body.dark-mode .container-fluid {
+    background: transparent;
+}
+
+/* Badge de categoría con color dinámico - ajustar contraste en modo oscuro */
+body.dark-mode .badge-categoria {
+    /* Si el color es muy claro, ajustar para mejor legibilidad */
+    filter: brightness(0.9) saturate(1.2);
+}
+
+/* Asegurar que el badge tenga buen contraste en modo oscuro */
+body.dark-mode .badge-categoria {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Estilos específicos para modo oscuro */
+body.dark-mode .texto-extraido {
+    background-color: #2d2d2d;
+    color: #e0e0e0;
+    border-color: #555;
+}
+
+body.dark-mode .scanner-video {
+    border-color: #555;
+}
+
+body.dark-mode .input-cantidad,
+body.dark-mode .input-precio,
+body.dark-mode .input-center {
+    background-color: #2d2d2d;
+    border-color: #555;
+    color: #e0e0e0;
+}
+

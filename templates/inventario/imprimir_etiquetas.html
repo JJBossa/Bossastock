@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}Imprimir Etiquetas - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item active">Imprimir Etiquetas</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-printer text-primary"></i> Imprimir Etiquetas</h2>
+    <a href="{% url 'inicio' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Volver
+    </a>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-6">
+                <input type="text" name="q" class="form-control" placeholder="Buscar producto..." value="{{ query }}">
+            </div>
+            <div class="col-md-4">
+                <select name="categoria" class="form-select">
+                    <option value="">Todas las categorías</option>
+                    {% for cat in categorias %}
+                    <option value="{{ cat.id }}" {% if categoria_id == cat.id|stringformat:"s" %}selected{% endif %}>
+                        {{ cat.nombre }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Buscar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Formulario de selección -->
+<form method="get" action="{% url 'generar_etiquetas_pdf' %}" id="form-etiquetas">
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Seleccionar Productos</h5>
+            <div>
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="seleccionarTodos()">
+                    <i class="bi bi-check-all"></i> Seleccionar Todos
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deseleccionarTodos()">
+                    <i class="bi bi-x-square"></i> Deseleccionar Todos
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if productos %}
+            <div class="row">
+                {% for producto in productos %}
+                <div class="col-md-4 mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="producto_id" value="{{ producto.id }}" id="prod_{{ producto.id }}">
+                        <label class="form-check-label" for="prod_{{ producto.id }}">
+                            {{ producto.nombre }}
+                            {% if producto.sku %}
+                            <small class="text-muted">({{ producto.sku }})</small>
+                            {% endif %}
+                        </label>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted">No se encontraron productos</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="text-center">
+        <button type="submit" class="btn btn-primary btn-lg">
+            <i class="bi bi-printer"></i> Generar PDF de Etiquetas
+        </button>
+    </div>
+</form>
+
+<script>
+function seleccionarTodos() {
+    document.querySelectorAll('input[name="producto_id"]').forEach(cb => cb.checked = true);
+}
+function deseleccionarTodos() {
+    document.querySelectorAll('input[name="producto_id"]').forEach(cb => cb.checked = false);
+}
+</script>
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
+{% endblock %}
+

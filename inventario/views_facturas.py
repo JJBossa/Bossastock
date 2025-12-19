@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from .models import Factura, ItemFactura, Proveedor, Producto, HistorialCambio, Categoria
 from .forms_facturas import FacturaForm, ItemFacturaForm, ProveedorForm
 from .utils_ocr import extraer_texto_ocr, extraer_items_factura
-from .views import es_admin_bossa, registrar_cambio
+from .utils import es_admin_bossa, registrar_cambio
 
 @login_required
 def listar_facturas(request):

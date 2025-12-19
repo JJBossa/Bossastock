@@ -6,13 +6,14 @@ from django.db.models import Q, F, Sum, Count
 from django.core.paginator import Paginator
 from django.contrib import messages
 from django.utils import timezone
+from django.http import JsonResponse
+from django.db.models import CharField
+from django.db.models.functions import Lower, Replace
+from django.core.exceptions import ValidationError
 from datetime import timedelta
-from .models import Producto, Categoria, HistorialCambio
+from .models import Producto, Categoria, HistorialCambio, ProductoFavorito, MovimientoStock
 from .forms import ProductoForm, CategoriaForm
-
-def es_admin_bossa(user):
-    """Verifica si el usuario es el admin bossa"""
-    return user.is_authenticated and user.username == 'bossa'
+from .utils import es_admin_bossa, normalizar_texto, registrar_cambio, logger, get_categorias_cached
 
 def login_view(request):
     if request.user.is_authenticated:
@@ -34,17 +35,7 @@ def logout_view(request):
     logout(request)
     return redirect('login')
 
-def registrar_cambio(producto, usuario, tipo_cambio, campo_modificado=None, valor_anterior=None, valor_nuevo=None, descripcion=None):
-    """Registra un cambio en el historial"""
-    HistorialCambio.objects.create(
-        producto=producto,
-        usuario=usuario,
-        tipo_cambio=tipo_cambio,
-        campo_modificado=campo_modificado,
-        valor_anterior=str(valor_anterior) if valor_anterior else None,
-        valor_nuevo=str(valor_nuevo) if valor_nuevo else None,
-        descripcion=descripcion
-    )
+# registrar_cambio ahora está en utils.py
 
 @login_required
 def agregar_producto(request):
@@ -167,7 +158,8 @@ def eliminar_producto(request, producto_id):
 
 @login_required
 def inicio(request):
-    productos = Producto.objects.filter(activo=True)
+    # Optimización: usar select_related para evitar N+1 queries
+    productos = Producto.objects.filter(activo=True).select_related('categoria')
     query = request.GET.get('q', '')
     orden = request.GET.get('orden', 'nombre_asc')
     categoria_id = request.GET.get('categoria', '')
@@ -184,13 +176,15 @@ def inicio(request):
     if precio_min:
         try:
             productos = productos.filter(precio__gte=float(precio_min))
-        except:
+        except (ValueError, TypeError):
+            logger.warning(f'Precio mínimo inválido: {precio_min}', extra={'user': request.user.username})
             pass
     
     if precio_max:
         try:
             productos = productos.filter(precio__lte=float(precio_max))
-        except:
+        except (ValueError, TypeError):
+            logger.warning(f'Precio máximo inválido: {precio_max}', extra={'user': request.user.username})
             pass
     
     if stock_bajo == '1':
@@ -201,13 +195,50 @@ def inicio(request):
     elif con_imagen == '0':
         productos = productos.filter(Q(imagen__isnull=True) | Q(imagen=''))
     
-    # Búsqueda
+    # Búsqueda optimizada - usar queries de base de datos en lugar de iteración en memoria
     if query:
-        productos = productos.filter(
-            Q(nombre__icontains=query) |
-            Q(sku__icontains=query) |
-            Q(descripcion__icontains=query)
-        )
+        query_normalizado = normalizar_texto(query)
+        
+        # Búsqueda directa en DB (mucho más rápida que iterar en memoria)
+        # Buscar en nombre, SKU y descripción
+        q_objects = Q()
+        
+        # Para búsqueda insensible a tildes, necesitamos una estrategia híbrida
+        # Primero intentar búsqueda directa (rápida)
+        q_objects |= Q(nombre__icontains=query)
+        q_objects |= Q(sku__icontains=query)
+        q_objects |= Q(descripcion__icontains=query)
+        
+        # Si la búsqueda contiene caracteres con tilde, también buscar sin tilde
+        # Ejemplo: buscar "cafe" también encuentra "café"
+        productos_filtrados = productos.filter(q_objects)
+        
+        # Si no hay resultados con búsqueda directa, intentar búsqueda normalizada
+        # Solo si la búsqueda directa no dio resultados
+        if not productos_filtrados.exists() and query != query_normalizado:
+            # Búsqueda adicional normalizada (más lenta, solo si es necesario)
+            productos_ids = []
+            productos_temp = productos.only('id', 'nombre', 'sku', 'descripcion')
+            
+            for producto in productos_temp:
+                nombre_norm = normalizar_texto(producto.nombre)
+                sku_norm = normalizar_texto(producto.sku or '')
+                descripcion_norm = normalizar_texto(producto.descripcion or '')
+                
+                if (query_normalizado in nombre_norm or 
+                    query_normalizado in sku_norm or 
+                    query_normalizado in descripcion_norm):
+                    productos_ids.append(producto.id)
+            
+            if productos_ids:
+                productos = productos.filter(id__in=productos_ids)
+            else:
+                productos = productos.none()
+        else:
+            productos = productos_filtrados
+        
+        logger.info(f'Búsqueda realizada: "{query}" - {productos.count()} resultados', 
+                   extra={'user': request.user.username})
     
     # Ordenamiento
     if orden == 'nombre_asc':
@@ -230,12 +261,21 @@ def inicio(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    # Obtener categorías para el filtro
-    categorias = Categoria.objects.all().order_by('nombre')
+    # Obtener categorías para el filtro (desde caché)
+    categorias_data = get_categorias_cached()
+    # Convertir a objetos Categoria para compatibilidad con template
+    categorias = Categoria.objects.filter(id__in=[c['id'] for c in categorias_data]).order_by('nombre')
     
     # Estadísticas rápidas
     total_productos = Producto.objects.filter(activo=True).count()
     productos_stock_bajo_count = Producto.objects.filter(activo=True, stock__lte=F('stock_minimo')).count()
+    
+    # Obtener IDs de productos favoritos del usuario
+    favoritos_ids = set()
+    if request.user.is_authenticated:
+        favoritos_ids = set(ProductoFavorito.objects.filter(
+            usuario=request.user
+        ).values_list('producto_id', flat=True))
     
     context = {
         'productos': page_obj,
@@ -251,6 +291,71 @@ def inicio(request):
         'total_productos': total_productos,
         'productos_stock_bajo_count': productos_stock_bajo_count,
         'es_admin': es_admin_bossa(request.user),
+        'favoritos_ids': favoritos_ids,  # IDs de productos favoritos
     }
     
     return render(request, 'inventario/inicio.html', context)
+
+@login_required
+def actualizar_stock_rapido(request, producto_id):
+    """Vista AJAX para actualizar stock rápidamente con botones +/-"""
+    if not es_admin_bossa(request.user):
+        return JsonResponse({'error': 'No tienes permisos'}, status=403)
+    
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    
+    producto = get_object_or_404(Producto, id=producto_id)
+    accion = request.POST.get('accion')  # 'sumar', 'restar', o 'set'
+    cantidad = request.POST.get('cantidad', '0')
+    
+    try:
+        cantidad = int(cantidad)
+        stock_anterior = producto.stock
+        
+        if accion == 'sumar':
+            nuevo_stock = producto.stock + cantidad
+        elif accion == 'restar':
+            nuevo_stock = max(0, producto.stock - cantidad)  # No permitir negativo
+        elif accion == 'set':
+            nuevo_stock = max(0, cantidad)  # No permitir negativo
+        else:
+            return JsonResponse({'error': 'Acción no válida'}, status=400)
+        
+        producto.stock = nuevo_stock
+        producto.save()
+        
+        # Registrar movimiento de stock
+        tipo_movimiento = 'entrada' if accion == 'sumar' else 'salida' if accion == 'restar' else 'ajuste'
+        MovimientoStock.objects.create(
+            producto=producto,
+            tipo=tipo_movimiento,
+            cantidad=abs(nuevo_stock - stock_anterior),
+            motivo='ajuste_inventario' if accion == 'set' else 'otro',
+            stock_anterior=stock_anterior,
+            stock_nuevo=nuevo_stock,
+            usuario=request.user,
+            notas=f'Actualización rápida: {accion} {cantidad if accion != "set" else ""}'
+        )
+        
+        # Registrar cambio
+        registrar_cambio(
+            producto, 
+            request.user, 
+            'stock', 
+            'stock', 
+            stock_anterior, 
+            nuevo_stock,
+            f'Stock actualizado rápidamente: {accion} {cantidad if accion != "set" else ""}'
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'stock': producto.stock,
+            'stock_bajo': producto.stock_bajo,
+            'mensaje': f'Stock actualizado: {stock_anterior} → {nuevo_stock}'
+        })
+    except ValueError:
+        return JsonResponse({'error': 'Cantidad inválida. Debe ser un número.'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': f'Error: {str(e)}'}, status=500)

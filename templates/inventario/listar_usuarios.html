@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestión de Usuarios - STOCKEX{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-people"></i> Gestión de Usuarios</h2>
+    <div>
+        <a href="{% url 'inicio' %}" class="btn btn-secondary me-2">
+            <i class="bi bi-arrow-left"></i> Volver al Inicio
+        </a>
+        <a href="{% url 'crear_usuario' %}" class="btn btn-primary">
+            <i class="bi bi-person-plus"></i> Crear Usuario
+        </a>
+    </div>
+</div>
+
+<!-- Búsqueda -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-10">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" 
+                           class="form-control" 
+                           name="q" 
+                           value="{{ query }}" 
+                           placeholder="Buscar por nombre de usuario, email, nombre o apellido...">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Buscar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla de usuarios -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="bi bi-list-ul"></i> Usuarios ({{ total_usuarios }})
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if usuarios %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Email</th>
+                        <th>Nombre</th>
+                        <th>Estado</th>
+                        <th>Permisos</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for usuario in usuarios %}
+                    <tr>
+                        <td>
+                            <strong>{{ usuario.username }}</strong>
+                            {% if usuario.is_superuser %}
+                                <span class="badge bg-danger">Admin</span>
+                            {% elif usuario.is_staff %}
+                                <span class="badge bg-warning">Staff</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Usuario</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ usuario.email|default:"-" }}</td>
+                        <td>
+                            {% if usuario.first_name or usuario.last_name %}
+                                {{ usuario.first_name }} {{ usuario.last_name }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if usuario.is_active %}
+                                <span class="badge bg-success">Activo</span>
+                            {% else %}
+                                <span class="badge bg-danger">Inactivo</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if usuario.is_superuser %}
+                                <i class="bi bi-shield-check text-danger"></i> Superusuario
+                            {% elif usuario.is_staff %}
+                                <i class="bi bi-shield text-warning"></i> Staff
+                            {% else %}
+                                <i class="bi bi-person text-secondary"></i> Normal
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'editar_usuario' usuario.id %}" class="btn btn-outline-primary" title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'resetear_password' usuario.id %}" class="btn btn-outline-warning" title="Resetear Contraseña">
+                                    <i class="bi bi-key"></i>
+                                </a>
+                                {% if usuario.username != 'bossa' and usuario.id != user.id %}
+                                <a href="{% url 'eliminar_usuario' usuario.id %}" class="btn btn-outline-danger" title="Eliminar">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginación -->
+        {% if usuarios.has_other_pages %}
+        <nav aria-label="Paginación">
+            <ul class="pagination justify-content-center">
+                {% if usuarios.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if query %}&q={{ query }}{% endif %}">Primera</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ usuarios.previous_page_number }}{% if query %}&q={{ query }}{% endif %}">Anterior</a>
+                    </li>
+                {% endif %}
+                
+                <li class="page-item active">
+                    <span class="page-link">Página {{ usuarios.number }} de {{ usuarios.paginator.num_pages }}</span>
+                </li>
+                
+                {% if usuarios.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ usuarios.next_page_number }}{% if query %}&q={{ query }}{% endif %}">Siguiente</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ usuarios.paginator.num_pages }}{% if query %}&q={{ query }}{% endif %}">Última</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        
+        {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No se encontraron usuarios.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
+{% endblock %}
+

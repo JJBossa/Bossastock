@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestionar Categorías - STOCKEX{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'inicio' %}"><i class="bi bi-house-door"></i> Inicio</a></li>
+        <li class="breadcrumb-item active" aria-current="page"><i class="bi bi-tags"></i> Categorías</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-tags-fill text-primary"></i> Gestionar Categorías</h2>
+    <div>
+        <a href="{% url 'inicio' %}" class="btn btn-outline-secondary me-2">
+            <i class="bi bi-arrow-left"></i> Volver al Inicio
+        </a>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#categoriaModal" onclick="limpiarFormulario()">
+            <i class="bi bi-plus-circle"></i> Nueva Categoría
+        </button>
+    </div>
+</div>
+
+{% if messages %}
+<div class="mb-3">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-body">
+        {% if categorias %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Color</th>
+                        <th>Nombre</th>
+                        <th>Descripción</th>
+                        <th>Productos</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for categoria in categorias %}
+                    <tr>
+                        <td>
+                            <div style="width: 30px; height: 30px; background-color: {{ categoria.color }}; border-radius: 5px; border: 1px solid #ddd;"></div>
+                        </td>
+                        <td><strong>{{ categoria.nombre }}</strong></td>
+                        <td>{{ categoria.descripcion|default:"-"|truncatewords:10 }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ categoria.producto_count }} producto{{ categoria.producto_count|pluralize }}</span>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-warning" onclick="editarCategoria({{ categoria.id }})" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="confirmarEliminar({{ categoria.id }}, '{{ categoria.nombre }}', {{ categoria.producto_count }})" title="Eliminar">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-tags" style="font-size: 4rem; color: #ccc;"></i>
+            <h4 class="mt-3">No hay categorías</h4>
+            <p class="text-muted">Crea tu primera categoría para organizar tus productos.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal para crear/editar categoría -->
+<div class="modal fade" id="categoriaModal" tabindex="-1" aria-labelledby="categoriaModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'gestionar_categorias' %}">
+                {% csrf_token %}
+                <input type="hidden" name="categoria_id" id="categoriaId">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="categoriaModalLabel">
+                        <i class="bi bi-tag"></i> <span id="modalTitulo">Nueva Categoría</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label">Nombre de la Categoría *</label>
+                        <input type="text" class="form-control form-control-lg" id="nombre" name="nombre" required placeholder="Ej: Bebidas, Snacks, Limpieza...">
+                    </div>
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="3" placeholder="Descripción opcional de la categoría"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="color" class="form-label">Color</label>
+                        <div class="d-flex align-items-center gap-3">
+                            <input type="color" class="form-control form-control-color" id="color" name="color" value="#667eea" style="width: 60px; height: 50px;">
+                            <span class="text-muted" id="colorHex">#667eea</span>
+                        </div>
+                        <small class="text-muted">Este color se mostrará en las etiquetas de categoría</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg"></i> Guardar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para confirmar eliminación -->
+<div class="modal fade" id="eliminarModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'gestionar_categorias' %}">
+                {% csrf_token %}
+                <input type="hidden" name="eliminar" value="1">
+                <input type="hidden" name="categoria_id" id="eliminarCategoriaId">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Confirmar Eliminación</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Estás seguro de eliminar la categoría <strong id="eliminarNombre"></strong>?</p>
+                    <div class="alert alert-warning" id="alertaProductos" style="display: none;">
+                        <i class="bi bi-exclamation-triangle"></i> Esta categoría tiene <strong id="cantidadProductos"></strong> producto(s) asociados. Los productos quedarán sin categoría.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Eliminar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Actualizar texto del color hex
+    document.getElementById('color').addEventListener('input', function() {
+        document.getElementById('colorHex').textContent = this.value;
+    });
+    
+    function limpiarFormulario() {
+        document.getElementById('categoriaId').value = '';
+        document.getElementById('nombre').value = '';
+        document.getElementById('descripcion').value = '';
+        document.getElementById('color').value = '#667eea';
+        document.getElementById('colorHex').textContent = '#667eea';
+        document.getElementById('modalTitulo').textContent = 'Nueva Categoría';
+    }
+    
+    function editarCategoria(id) {
+        fetch(`/categorias/${id}/ajax/`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('categoriaId').value = data.id;
+                document.getElementById('nombre').value = data.nombre;
+                document.getElementById('descripcion').value = data.descripcion;
+                document.getElementById('color').value = data.color;
+                document.getElementById('colorHex').textContent = data.color;
+                document.getElementById('modalTitulo').textContent = 'Editar Categoría';
+                
+                var modal = new bootstrap.Modal(document.getElementById('categoriaModal'));
+                modal.show();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al cargar la categoría');
+            });
+    }
+    
+    function confirmarEliminar(id, nombre, cantidadProductos) {
+        document.getElementById('eliminarCategoriaId').value = id;
+        document.getElementById('eliminarNombre').textContent = nombre;
+        
+        if (cantidadProductos > 0) {
+            document.getElementById('alertaProductos').style.display = 'block';
+            document.getElementById('cantidadProductos').textContent = cantidadProductos;
+        } else {
+            document.getElementById('alertaProductos').style.display = 'none';
+        }
+        
+        var modal = new bootstrap.Modal(document.getElementById('eliminarModal'));
+        modal.show();
+    }
+</script>
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
+{% endblock %}
+

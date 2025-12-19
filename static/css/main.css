@@ -530,6 +530,74 @@ body {
     color: white !important;
 }
 
+/* Clases utilitarias para evitar estilos inline */
+.min-width-120 {
+    min-width: 120px;
+}
+
+.min-width-150 {
+    min-width: 150px;
+}
+
+.favorito-icon {
+    font-size: 1.2em;
+}
+
+.form-inline {
+    display: inline;
+}
+
+/* Estilos para elementos específicos que tenían inline */
+.texto-extraido {
+    max-height: 500px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    font-size: 0.9rem;
+}
+
+.input-cantidad {
+    width: 80px;
+}
+
+.input-precio {
+    width: 120px;
+}
+
+.input-center {
+    width: 80px;
+    text-align: center;
+}
+
+.scanner-video {
+    max-width: 640px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.scanner-canvas {
+    display: none;
+}
+
+/* Badge de categoría - el color se aplica inline porque es dinámico desde la base de datos */
+.badge-categoria {
+    /* El color de fondo se establece dinámicamente desde el template */
+    /* En modo oscuro, se ajusta el contraste automáticamente */
+}
+
+/* Transiciones suaves para cambio de modo */
+body,
+body *,
+body *::before,
+body *::after {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Evitar transiciones en elementos que no deben tenerlas */
+body .card-producto img,
+body .producto-imagen {
+    transition: transform 0.3s ease;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .main-container {

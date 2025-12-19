@@ -1,0 +1,772 @@
+{% extends 'base.html' %}
+
+{% block title %}Punto de Venta - STOCKEX{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pos-container {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 12px;
+        height: calc(100vh - 80px);
+        overflow: hidden;
+    }
+    .productos-section {
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-right: 5px;
+    }
+    .carrito-section {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow: hidden;
+    }
+    .carrito-items {
+        overflow-y: auto;
+        margin-bottom: 8px;
+        min-height: 0;
+        max-height: 200px;
+    }
+    .item-carrito {
+        background: white;
+        padding: 8px;
+        margin-bottom: 6px;
+        border-radius: 5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.9rem;
+    }
+    .total-section {
+        border-top: 2px solid #dee2e6;
+        padding-top: 8px;
+        flex-shrink: 0;
+    }
+    .codigo-input {
+        font-size: 1.4rem;
+        padding: 14px;
+        text-align: center;
+    }
+    .card {
+        margin-bottom: 10px !important;
+    }
+    .card-body {
+        padding: 12px !important;
+    }
+    .card-header {
+        padding: 8px 12px !important;
+    }
+    .card-header h5 {
+        font-size: 1.05rem;
+        margin: 0;
+    }
+    .cambio-display {
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0%, 100% {
+            box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+        }
+        50% {
+            box-shadow: 0 6px 20px rgba(255, 193, 7, 0.5);
+        }
+    }
+    .cambio-amount {
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+    @media (max-width: 768px) {
+        .pos-container {
+            grid-template-columns: 1fr;
+        }
+        .cambio-amount {
+            font-size: 1.5rem !important;
+        }
+    }
+    /* Scrollbar personalizado más delgado */
+    .carrito-items::-webkit-scrollbar,
+    .productos-section::-webkit-scrollbar {
+        width: 6px;
+    }
+    .carrito-items::-webkit-scrollbar-track,
+    .productos-section::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+    .carrito-items::-webkit-scrollbar-thumb,
+    .productos-section::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 3px;
+    }
+    .carrito-items::-webkit-scrollbar-thumb:hover,
+    .productos-section::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pos-container" style="margin-top: -10px;">
+    <!-- Sección de productos y escaneo -->
+    <div class="productos-section">
+        <!-- Input para escanear código de barras -->
+        <div class="card">
+            <div class="card-body">
+                <label class="form-label mb-1" style="font-size: 0.95rem;"><i class="bi bi-upc-scan"></i> Escanear Código</label>
+                <input type="text" 
+                       class="form-control codigo-input" 
+                       id="codigo-input" 
+                       placeholder="Escanea o escribe el código..."
+                       autofocus>
+                <small class="text-muted" style="font-size: 0.75rem;">
+                    <i class="bi bi-keyboard"></i> <kbd>F1</kbd> Nueva | <kbd>F2</kbd> Procesar | <kbd>F3</kbd> Enfocar
+                </small>
+            </div>
+        </div>
+        
+        <!-- Lista de productos disponibles -->
+        <div class="card" style="flex: 1; min-height: 0; display: flex; flex-direction: column;">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-box-seam"></i> Productos Disponibles</h5>
+            </div>
+            <div class="card-body" style="flex: 1; overflow-y: auto; padding: 10px !important;">
+                <div class="mb-3">
+                    <input type="text" 
+                           class="form-control form-control-sm" 
+                           id="buscar-producto" 
+                           placeholder="Buscar producto por nombre o código..."
+                           onkeyup="buscarProductosPOS()">
+                </div>
+                <div id="productos-lista" class="row g-2">
+                    {% for producto in productos %}
+                    <div class="col-md-4 col-sm-6">
+                        <button class="btn btn-outline-primary w-100 text-start" 
+                                onclick="agregarAlCarritoConFeedback({{ producto.id }}, '{{ producto.nombre|escapejs }}', {{ producto.precio_promo|default:producto.precio }}, {{ producto.stock }})"
+                                style="font-size: 0.9rem;">
+                            <strong>{{ producto.nombre }}</strong><br>
+                            <small>${{ producto.precio_promo|default:producto.precio|floatformat:0 }}</small>
+                            {% if producto.stock > 0 %}
+                            <span class="badge bg-success float-end">{{ producto.stock }} u.</span>
+                            {% else %}
+                            <span class="badge bg-danger float-end">Sin stock</span>
+                            {% endif %}
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sección del carrito -->
+    <div class="carrito-section">
+        <h5 class="mb-2" style="font-size: 1.05rem;"><i class="bi bi-cart"></i> Carrito</h5>
+        
+        <div class="carrito-items" id="carrito-items" style="max-height: 200px;">
+            <div class="text-center text-muted py-3">
+                <i class="bi bi-cart-x" style="font-size: 2rem;"></i>
+                <p class="mt-1 mb-0" style="font-size: 0.85rem;">Carrito vacío</p>
+            </div>
+        </div>
+        
+        <div class="total-section" style="padding-top: 8px;">
+            <div class="d-flex justify-content-between mb-2" style="font-size: 0.95rem;">
+                <span>Subtotal:</span>
+                <strong id="subtotal" style="font-size: 1rem;">$0</strong>
+            </div>
+                <div class="mb-2">
+                <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.9rem;">
+                    <span>Descuento:</span>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <input type="radio" class="btn-check" name="tipo-descuento" id="descuento-fijo" value="fijo" checked onchange="calcularTotal()">
+                        <label class="btn btn-outline-secondary" for="descuento-fijo" style="font-size: 0.8rem; padding: 3px 10px;">$</label>
+                        
+                        <input type="radio" class="btn-check" name="tipo-descuento" id="descuento-porcentaje" value="porcentaje" onchange="calcularTotal()">
+                        <label class="btn btn-outline-secondary" for="descuento-porcentaje" style="font-size: 0.8rem; padding: 3px 10px;">%</label>
+                    </div>
+                </div>
+                <input type="number" 
+                       class="form-control" 
+                       id="descuento" 
+                       value="0" 
+                       style="font-size: 0.95rem; padding: 6px 10px;"
+                       oninput="calcularTotal()"
+                       onchange="calcularTotal()"
+                       min="0"
+                       step="0.01"
+                       placeholder="0">
+            </div>
+            <hr class="my-2" style="margin: 8px 0 !important;">
+            <div class="d-flex justify-content-between mb-2">
+                <strong style="font-size: 1rem;">Total:</strong>
+                <strong class="text-primary" id="total" style="font-size: 1.3rem;">$0</strong>
+            </div>
+            
+            <div class="mb-2">
+                <label class="form-label mb-1" style="font-size: 0.95rem;">Método de Pago</label>
+                <select class="form-select" id="metodo-pago" style="font-size: 0.95rem; padding: 6px;">
+                    <option value="efectivo">Efectivo</option>
+                    <option value="tarjeta">Tarjeta</option>
+                    <option value="transferencia">Transferencia</option>
+                    <option value="mixto">Mixto</option>
+                </select>
+            </div>
+            
+            <div class="mb-2" id="efectivo-section">
+                <label class="form-label mb-1" style="font-size: 0.95rem;">Monto Recibido</label>
+                <input type="number" 
+                       class="form-control mb-2" 
+                       id="monto-recibido" 
+                       value="0"
+                       oninput="calcularCambio()"
+                       onchange="calcularCambio()"
+                       min="0"
+                       step="0.01"
+                       style="font-size: 1.2rem; font-weight: 600; padding: 10px;">
+                
+                <!-- Sección destacada del cambio/vuelto -->
+                <div class="cambio-display p-3 rounded-2 text-center" style="background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%); border: 2px solid #ffc107; box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);">
+                    <label class="form-label mb-1" style="font-size: 0.85rem; font-weight: 600; color: #856404; margin: 0;">Vuelto para el Cliente</label>
+                    <div id="cambio" class="cambio-amount" style="font-size: 2.8rem; font-weight: 900; color: #856404; line-height: 1.2;">
+                        $0
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2" style="position: relative; z-index: 10;">
+                <button class="btn btn-success" onclick="procesarVenta()" style="position: relative; z-index: 10; pointer-events: auto; padding: 10px; font-size: 1rem; font-weight: 600;">
+                    <i class="bi bi-check-circle"></i> Procesar
+                </button>
+                <button type="button" class="btn btn-outline-danger" onclick="limpiarCarrito()" style="position: relative; z-index: 10; pointer-events: auto; cursor: pointer; padding: 8px; font-size: 0.95rem;">
+                    <i class="bi bi-x-circle"></i> Limpiar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación -->
+<div class="modal fade" id="confirmarVentaModal" tabindex="-1" data-venta-id="">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-check-circle"></i> ¡Venta Procesada Exitosamente!</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div class="mb-3">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+                </div>
+                <p class="mb-2"><strong>Venta #<span id="numero-venta-modal"></span></strong></p>
+                <p class="mb-2">Total: <strong id="total-modal" class="text-primary" style="font-size: 1.5rem;"></strong></p>
+                <p class="text-success mb-0"><i class="bi bi-check"></i> Stock actualizado automáticamente</p>
+            </div>
+            <div class="modal-footer d-grid gap-2">
+                <div class="btn-group w-100" role="group">
+                    <button type="button" class="btn btn-primary btn-lg" onclick="imprimirTicket('termica')" id="btn-imprimir-ticket">
+                        <i class="bi bi-printer"></i> Térmica
+                    </button>
+                    <button type="button" class="btn btn-outline-primary btn-lg" onclick="imprimirTicket('a4')" id="btn-imprimir-ticket-a4">
+                        <i class="bi bi-file-pdf"></i> A4
+                    </button>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-secondary flex-fill" data-bs-dismiss="modal">
+                        <i class="bi bi-plus-circle"></i> Nueva Venta
+                    </button>
+                    <a href="{% url 'listar_ventas' %}" class="btn btn-outline-primary flex-fill">
+                        <i class="bi bi-clock-history"></i> Historial
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let carrito = [];
+let codigoTimeout = null;
+
+// Lista de productos disponibles para búsqueda
+let productosDisponibles = [
+    {% for producto in productos %}
+    {
+        id: {{ producto.id }},
+        nombre: '{{ producto.nombre|escapejs }}',
+        precio: {{ producto.precio_promo|default:producto.precio }},
+        stock: {{ producto.stock }}
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+];
+
+// Función para buscar productos en la lista
+function buscarProductosPOS() {
+    const busqueda = document.getElementById('buscar-producto').value.toLowerCase();
+    const lista = document.getElementById('productos-lista');
+    let html = '';
+    
+    productosDisponibles.forEach(producto => {
+        if (producto.nombre.toLowerCase().includes(busqueda) || !busqueda) {
+            html += `
+                <div class="col-md-4 col-sm-6">
+                    <button class="btn btn-outline-primary w-100 text-start" 
+                            onclick="agregarAlCarritoConFeedback(${producto.id}, '${producto.nombre.replace(/'/g, "\\'")}', ${producto.precio}, ${producto.stock})"
+                            style="font-size: 0.9rem;">
+                        <strong>${producto.nombre}</strong><br>
+                        <small>$${producto.precio.toLocaleString()}</small>
+                        ${producto.stock > 0 ? 
+                            `<span class="badge bg-success float-end">${producto.stock} u.</span>` : 
+                            `<span class="badge bg-danger float-end">Sin stock</span>`}
+                    </button>
+                </div>
+            `;
+        }
+    });
+    
+    lista.innerHTML = html || '<div class="col-12"><p class="text-muted">No se encontraron productos</p></div>';
+}
+
+// Escuchar entrada del lector de código de barras
+document.getElementById('codigo-input').addEventListener('input', function() {
+    clearTimeout(codigoTimeout);
+    const codigo = this.value.trim();
+    
+    if (codigo.length >= 3) {
+        codigoTimeout = setTimeout(() => {
+            buscarProductoPorCodigo(codigo);
+            this.value = '';
+        }, 300);
+    }
+});
+
+// Buscar producto por código de barras
+function buscarProductoPorCodigo(codigo) {
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    const csrftoken = getCookie('csrftoken');
+    
+    fetch('/pos/buscar-producto/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `codigo=${encodeURIComponent(codigo)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+            if (data.encontrado) {
+                if (data.sin_stock) {
+                    alert('Producto sin stock disponible');
+                } else {
+                    agregarAlCarritoConFeedback(
+                        data.producto.id,
+                        data.producto.nombre,
+                        data.producto.precio,
+                        data.producto.stock
+                    );
+                }
+            } else {
+                alert(data.mensaje || 'Producto no encontrado');
+            }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al buscar producto');
+    });
+}
+
+// Agregar producto al carrito
+function agregarAlCarrito(productoId, nombre, precio, stock) {
+    if (stock <= 0) {
+        alert('Producto sin stock disponible');
+        return;
+    }
+    
+    const itemExistente = carrito.find(item => item.producto_id === productoId);
+    
+    if (itemExistente) {
+        if (itemExistente.cantidad >= stock) {
+            alert('No hay más stock disponible');
+            return;
+        }
+        itemExistente.cantidad++;
+    } else {
+        carrito.push({
+            producto_id: productoId,
+            nombre: nombre,
+            precio: precio,
+            cantidad: 1,
+            stock: stock
+        });
+    }
+    
+    actualizarCarrito();
+}
+
+// Actualizar visualización del carrito
+function actualizarCarrito() {
+    const container = document.getElementById('carrito-items');
+    
+    if (carrito.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-3">
+                <i class="bi bi-cart-x" style="font-size: 2rem;"></i>
+                <p class="mt-1 mb-0" style="font-size: 0.85rem;">Carrito vacío</p>
+            </div>
+        `;
+    } else {
+        let html = '';
+        carrito.forEach((item, index) => {
+            const subtotal = item.precio * item.cantidad;
+            const nombreCorto = item.nombre.length > 20 ? item.nombre.substring(0, 20) + '...' : item.nombre;
+            html += `
+                <div class="item-carrito">
+                    <div style="flex: 1; min-width: 0;">
+                        <strong style="font-size: 0.8rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${nombreCorto}</strong>
+                        <small style="font-size: 0.7rem;">$${item.precio.toLocaleString()} x ${item.cantidad}</small>
+                    </div>
+                    <div class="text-end" style="margin-left: 5px;">
+                        <strong style="font-size: 0.85rem;">$${subtotal.toLocaleString()}</strong>
+                        <div class="btn-group btn-group-sm mt-1">
+                            <button class="btn btn-outline-secondary btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" onclick="modificarCantidad(${index}, -1)">-</button>
+                            <button class="btn btn-outline-secondary btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" onclick="modificarCantidad(${index}, 1)">+</button>
+                            <button class="btn btn-outline-danger btn-sm" style="padding: 2px 6px; font-size: 0.7rem;" onclick="eliminarItem(${index})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+    
+    calcularTotal();
+}
+
+// Modificar cantidad - Mejorado: Verificar stock antes de modificar
+function modificarCantidad(index, cambio) {
+    const item = carrito[index];
+    const nuevaCantidad = item.cantidad + cambio;
+    
+    if (nuevaCantidad <= 0) {
+        eliminarItem(index);
+    } else {
+        // Verificar stock disponible antes de modificar
+        // Nota: El stock puede haber cambiado desde que se agregó al carrito
+        // En producción, se podría hacer una verificación AJAX aquí
+        if (nuevaCantidad > item.stock) {
+            alert(`No hay más stock disponible. Stock disponible: ${item.stock}`);
+            return;
+        }
+        item.cantidad = nuevaCantidad;
+        actualizarCarrito();
+    }
+}
+
+// Eliminar item
+function eliminarItem(index) {
+    carrito.splice(index, 1);
+    actualizarCarrito();
+}
+
+// Variable global para mantener el total actual
+let totalActual = 0;
+
+// Calcular totales
+function calcularTotal() {
+    const subtotal = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+    const valorDescuento = parseFloat(document.getElementById('descuento').value) || 0;
+    const tipoDescuento = document.querySelector('input[name="tipo-descuento"]:checked').value;
+    
+    let descuento = 0;
+    if (tipoDescuento === 'porcentaje') {
+        // Descuento en porcentaje
+        descuento = (subtotal * valorDescuento) / 100;
+    } else {
+        // Descuento fijo
+        descuento = valorDescuento;
+    }
+    
+    // Limitar el descuento para que no sea mayor al subtotal
+    descuento = Math.min(descuento, subtotal);
+    totalActual = Math.max(0, subtotal - descuento);
+    
+    document.getElementById('subtotal').textContent = `$${subtotal.toLocaleString()}`;
+    document.getElementById('total').textContent = `$${totalActual.toLocaleString()}`;
+    
+    calcularCambio();
+}
+
+// Calcular cambio
+function calcularCambio() {
+    const montoRecibido = parseFloat(document.getElementById('monto-recibido').value) || 0;
+    const cambio = Math.max(0, montoRecibido - totalActual);
+    
+    const cambioElement = document.getElementById('cambio');
+    cambioElement.textContent = `$${cambio.toLocaleString()}`;
+    
+    // Actualizar visualmente el cambio con animación y color
+    if (cambio > 0) {
+        cambioElement.style.color = '#155724';
+        cambioElement.style.transform = 'scale(1.05)';
+        cambioElement.style.transition = 'all 0.3s ease';
+        setTimeout(() => {
+            cambioElement.style.transform = 'scale(1)';
+        }, 300);
+    } else {
+        cambioElement.style.color = '#856404';
+        cambioElement.style.transform = 'scale(1)';
+    }
+}
+
+// Mostrar/ocultar sección de efectivo
+document.getElementById('metodo-pago').addEventListener('change', function() {
+    const efectivoSection = document.getElementById('efectivo-section');
+    if (this.value === 'efectivo' || this.value === 'mixto') {
+        efectivoSection.style.display = 'block';
+    } else {
+        efectivoSection.style.display = 'none';
+    }
+});
+
+// Procesar venta
+function procesarVenta() {
+    if (carrito.length === 0) {
+        alert('El carrito está vacío');
+        return;
+    }
+    
+    // Asegurar que el total esté actualizado
+    calcularTotal();
+    
+    const subtotal = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+    const valorDescuento = parseFloat(document.getElementById('descuento').value) || 0;
+    const tipoDescuento = document.querySelector('input[name="tipo-descuento"]:checked').value;
+    
+    let descuento = 0;
+    if (tipoDescuento === 'porcentaje') {
+        descuento = (subtotal * valorDescuento) / 100;
+    } else {
+        descuento = valorDescuento;
+    }
+    descuento = Math.min(descuento, subtotal);
+    
+    const total = totalActual; // Usar la variable global
+    const metodoPago = document.getElementById('metodo-pago').value;
+    const montoRecibido = parseFloat(document.getElementById('monto-recibido').value) || 0;
+    const cambio = Math.max(0, montoRecibido - total);
+    
+    if (total <= 0) {
+        alert('El total debe ser mayor a 0');
+        return;
+    }
+    
+    if ((metodoPago === 'efectivo' || metodoPago === 'mixto') && montoRecibido < total) {
+        alert('El monto recibido debe ser mayor o igual al total');
+        return;
+    }
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    const csrftoken = getCookie('csrftoken');
+    const formData = new FormData();
+    formData.append('items', JSON.stringify(carrito));
+    formData.append('subtotal', subtotal);
+    formData.append('descuento', descuento);
+    formData.append('total', total);
+    formData.append('metodo_pago', metodoPago);
+    formData.append('monto_recibido', montoRecibido);
+    formData.append('cambio', cambio);
+    
+    fetch('/pos/procesar-venta/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('numero-venta-modal').textContent = data.numero_venta;
+            document.getElementById('total-modal').textContent = `$${data.total.toLocaleString()}`;
+            // Guardar el ID de la venta en el modal para poder imprimir
+            document.getElementById('confirmarVentaModal').setAttribute('data-venta-id', data.venta_id);
+            const modal = new bootstrap.Modal(document.getElementById('confirmarVentaModal'));
+            modal.show();
+            // Enfocar el botón de imprimir para acceso rápido con Enter
+            setTimeout(() => {
+                document.getElementById('btn-imprimir-ticket').focus();
+            }, 300);
+        } else {
+            alert('Error: ' + (data.error || 'No se pudo procesar la venta'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al procesar la venta');
+    });
+}
+
+// Limpiar carrito
+function limpiarCarrito() {
+    carrito = [];
+    actualizarCarrito();
+    document.getElementById('descuento').value = 0;
+    document.querySelector('input[name="tipo-descuento"][value="fijo"]').checked = true;
+    document.getElementById('monto-recibido').value = 0;
+    document.getElementById('metodo-pago').value = 'efectivo';
+    // Ocultar sección de efectivo si no es efectivo/mixto
+    document.getElementById('efectivo-section').style.display = 'block';
+    calcularTotal();
+    // Enfocar el input de código de barras para nueva venta
+    document.getElementById('codigo-input').focus();
+}
+
+
+// Atajos de teclado
+document.addEventListener('keydown', function(e) {
+    // F1 - Nueva venta (limpiar carrito)
+    if (e.key === 'F1') {
+        e.preventDefault();
+        limpiarCarrito();
+    }
+    // F2 - Procesar venta
+    if (e.key === 'F2') {
+        e.preventDefault();
+        procesarVenta();
+    }
+    // F3 - Enfocar código de barras
+    if (e.key === 'F3') {
+        e.preventDefault();
+        document.getElementById('codigo-input').focus();
+    }
+    // Escape - Limpiar carrito
+    if (e.key === 'Escape' && document.activeElement.id === 'codigo-input') {
+        limpiarCarrito();
+    }
+});
+
+// Sonido de confirmación (opcional)
+function playBeep() {
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 800;
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.1);
+    } catch (e) {
+        // Si no se puede reproducir sonido, no hacer nada
+    }
+}
+
+// Mejorar feedback visual al agregar producto
+function agregarAlCarritoConFeedback(productoId, nombre, precio, stock) {
+    agregarAlCarrito(productoId, nombre, precio, stock);
+    playBeep();
+    
+    // Resaltar el último item agregado
+    setTimeout(() => {
+        const items = document.querySelectorAll('.item-carrito');
+        if (items.length > 0) {
+            items[items.length - 1].style.animation = 'pulse 0.5s';
+            setTimeout(() => {
+                items[items.length - 1].style.animation = '';
+            }, 500);
+        }
+    }, 100);
+}
+
+// Imprimir ticket de venta
+function imprimirTicket(tipo = 'termica') {
+    const ventaId = document.getElementById('confirmarVentaModal').getAttribute('data-venta-id');
+    if (!ventaId) {
+        alert('No se pudo obtener el ID de la venta');
+        return;
+    }
+    
+    // Abrir el ticket en una nueva ventana para imprimir
+    const url = `/ventas/${ventaId}/ticket/?tipo=${tipo}`;
+    window.open(url, '_blank');
+    
+    // Opcional: Cerrar el modal y limpiar después de imprimir
+    // const modal = bootstrap.Modal.getInstance(document.getElementById('confirmarVentaModal'));
+    // modal.hide();
+    // limpiarCarrito();
+}
+
+// Permitir imprimir con Enter cuando el botón está enfocado
+document.addEventListener('keydown', function(e) {
+    const modal = document.getElementById('confirmarVentaModal');
+    if (modal && modal.classList.contains('show')) {
+        if (e.key === 'Enter' && (document.activeElement.id === 'btn-imprimir-ticket' || document.activeElement.id === 'btn-imprimir-ticket-a4')) {
+            e.preventDefault();
+            const tipo = document.activeElement.id === 'btn-imprimir-ticket' ? 'termica' : 'a4';
+            imprimirTicket(tipo);
+        }
+    }
+});
+
+// Limpiar carrito automáticamente cuando se cierra el modal de confirmación
+document.getElementById('confirmarVentaModal').addEventListener('hidden.bs.modal', function () {
+    limpiarCarrito();
+});
+</script>
+
+<style>
+@keyframes pulse {
+    0% { background-color: #fff; }
+    50% { background-color: #d4edda; }
+    100% { background-color: #fff; }
+}
+</style>
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
+{% endblock %}
+

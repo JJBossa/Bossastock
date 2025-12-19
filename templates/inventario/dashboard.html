@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Dashboard - Control de Stock{% endblock %}
+{% block title %}Dashboard - STOCKEX{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -216,5 +216,9 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block ayuda %}
+{% include 'inventario/ayuda_contextual.html' %}
 {% endblock %}
 
